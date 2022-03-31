@@ -6,6 +6,10 @@
 #include "HttpModule.h"
 #include "GameFramework/Actor.h"
 #include "LocationMarker.h"
+#include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
+#include "aws/dynamodbstreams/model/DescribeStreamRequest.h"
+#include "aws/dynamodbstreams/model/GetRecordsRequest.h"
+#include "aws/dynamodbstreams/model/GetShardIteratorRequest.h"
 #include "MarkerManager.generated.h"
 
 UCLASS()
@@ -51,6 +55,37 @@ public:
 
 	// TMultiMap<FString, ALocationMarker*> AllMarkers; // Device ID
 	TMap<uint32, ALocationMarker*> AllMarkers; // hash
+
+	void GetDynamoDBStreamsShardIteratorAsync(
+		Aws::DynamoDBStreams::Model::GetShardIteratorResult ShardIteratorResult,
+		bool& Success,
+		Aws::DynamoDBStreams::DynamoDBStreamsErrors& ErrorType,
+		FString& ErrorMsg,
+		const FLatentActionInfo& LatentInfo);
+	
+	// void GetDynamoDBStreamsRecordsAsync(
+	// 	Aws::DynamoDBStreams::DynamoDBStreamsErrors &ErrorType,
+	// 	FString &ErrorMsg,
+	// 	const FLatentActionInfo &LatentInfo);
+
+	Aws::DynamoDBStreams::DynamoDBStreamsClient* ClientRef;
+	Aws::DynamoDBStreams::Model::DescribeStreamRequest DescribeStreamRequest;
+	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome;
+	Aws::DynamoDBStreams::Model::DescribeStreamResult DescribeStreamResult;
+	Aws::DynamoDBStreams::Model::GetShardIteratorRequest ShardIteratorRequest;
+	Aws::DynamoDBStreams::Model::GetShardIteratorOutcome ShardIteratorOutcome;
+	Aws::DynamoDBStreams::Model::GetShardIteratorResult ShardIteratorResult;
+	Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards;
+	Aws::DynamoDBStreams::Model::GetRecordsRequest GetRecordsRequest;
+	Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome;
+	Aws::DynamoDBStreams::Model::GetRecordsResult GetRecordsResult;
+	bool ShardIteratorRequestSuccess = false;
+	Aws::DynamoDBStreams::DynamoDBStreamsErrors AErrorType;
+	FString AErrorMsg;
+	const FLatentActionInfo ALatentInfo;
+	bool Completed = false;
+	Aws::String ShardIterator;
+	Aws::String ShardId;
 
 protected:
 	void OnGetMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);

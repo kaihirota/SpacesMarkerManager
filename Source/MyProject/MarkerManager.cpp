@@ -1,10 +1,15 @@
 #include "MarkerManager.h"
+
 #include "Components/BoxComponent.h"
 #include "LocationMarker.h"
 #include "JsonObjectConverter.h"
 #include "HTTP.h"
 #include "TemporaryMarker.h"
 #include "Settings.h"
+#include "aws/core/Aws.h"
+#include "aws/core/auth/AWSCredentials.h"
+#include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
+#include "aws/dynamodbstreams/model/GetShardIteratorRequest.h"
 
 // Sets default values
 AMarkerManager::AMarkerManager()
@@ -21,6 +26,74 @@ AMarkerManager::AMarkerManager()
 void AMarkerManager::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	InitAPI(Aws::SDKOptions());
+	Aws::Auth::AWSCredentials Creadentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
+	Aws::Client::ClientConfiguration Config = Aws::Client::ClientConfiguration();
+	Config.region = REGION;
+	ClientRef = new Aws::DynamoDBStreams::DynamoDBStreamsClient(Creadentials, Config);
+
+	DescribeStreamRequest = Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(DynamoDBStreamsARN);
+	DescribeStreamOutcome = ClientRef->DescribeStream(DescribeStreamRequest);
+
+	if(DescribeStreamOutcome.IsSuccess())
+	{
+		DescribeStreamResult = DescribeStreamOutcome.GetResultWithOwnership();
+		Shards = DescribeStreamResult.GetStreamDescription().GetShards();
+		UE_LOG(LogTemp, Warning, TEXT("Found %d shards"), Shards.size());
+		
+		for (auto Shard : Shards)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("shard %s"), *FString(Shard.GetShardId().c_str()));
+			
+			// get iterator for the given shard id
+			ShardIteratorRequest = Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
+				.WithShardId(Shard.GetShardId())
+				.WithStreamArn(DynamoDBStreamsARN)
+				.WithShardIteratorType(Aws::DynamoDBStreams::Model::ShardIteratorType::LATEST);
+
+			if (ShardIteratorRequest.ShardIteratorTypeHasBeenSet() && ShardIteratorRequest.StreamArnHasBeenSet())
+			{
+				ShardIteratorOutcome = ClientRef->GetShardIterator(ShardIteratorRequest);
+				if (ShardIteratorOutcome.IsSuccess())
+				{
+					ShardIteratorResult = ShardIteratorOutcome.GetResult();
+					ShardIterator = ShardIteratorResult.GetShardIterator();
+
+					// get record from the shard using the iterator
+					if (!ShardIterator.empty())
+					{
+						GetRecordsRequest = Aws::DynamoDBStreams::Model::GetRecordsRequest()
+									.WithShardIterator(ShardIterator)
+									.WithLimit(10);
+						GetRecordsOutcome = ClientRef->GetRecords(GetRecordsRequest);
+						if (GetRecordsOutcome.IsSuccess())
+						{
+							GetRecordsResult = GetRecordsOutcome.GetResult();
+							Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = GetRecordsResult.GetRecords();
+							UE_LOG(LogTemp, Warning, TEXT("Found %d records using sharditerator %s"), Records.size(), *FString(ShardIterator.c_str()));
+							for (auto Record : Records)
+							{
+								Aws::Utils::Json::JsonValue JsonVal = Record.Jsonize();
+								Aws::String JsonStr = Aws::String();
+								JsonVal.AsString(JsonStr);
+								UE_LOG(LogTemp, Warning, TEXT("Record: %s"), *FString(JsonStr.c_str()));						
+							}
+							// ShardIterator = GetRecordsResult.GetNextShardIterator();
+						} else
+						{
+							UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"), *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
+							ShardIterator = "";
+						}
+					}
+				}
+				// GetDynamoDBStreamsShardIteratorAsync(ShardIteratorResult, ShardIteratorRequestSuccess, AErrorType, AErrorMsg, ALatentInfo);
+			}
+		}
+	} else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Something went wrong %s"), *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
+	}
 }
 
 // Called every frame
@@ -55,8 +128,113 @@ ALocationMarker* AMarkerManager::CreateMarker(const FVector SpawnLocation, const
 	return CreateMarker(SpawnLocation, Timestamp, DeviceID, false);
 }
 
+// void AMarkerManager::GetDynamoDBStreamsShardIteratorAsync(
+// 	Aws::DynamoDBStreams::Model::GetShardIteratorResult AShardIteratorResult,
+// 	bool &Success,
+// 	Aws::DynamoDBStreams::DynamoDBStreamsErrors &ErrorType,
+// 	FString &ErrorMsg,
+// 	const FLatentActionInfo &LatentInfo)
+// {
+// 	ShardIteratorRequest = Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
+// 			.WithStreamArn(DynamoDBStreamsARN)
+// 			.WithShardIteratorType(Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON);
+// 	
+// 	if (ClientRef != nullptr && ClientRef)
+// 	{
+// 		ClientRef->GetShardIteratorAsync(
+// 			ShardIteratorRequest, [&Success, &AShardIteratorResult, &ErrorType, &ErrorMsg, this](
+// 				const Aws::DynamoDBStreams::DynamoDBStreamsClient *awsDynamoDBStreamsClient,
+// 				const Aws::DynamoDBStreams::Model::GetShardIteratorRequest &awsGetShardIteratorRequest,
+// 				const Aws::DynamoDBStreams::Model::GetShardIteratorOutcome &awsGetShardIteratorOutcome,
+// 				const std::shared_ptr<const Aws::Client::AsyncCallerContext> &awsAsyncCallerContext
+// 			) mutable -> void {
+// 				Success = awsGetShardIteratorOutcome.IsSuccess();
+// 				if (Success) {
+// 					AShardIteratorResult = awsGetShardIteratorOutcome.GetResult();
+// 					ShardIterator = AShardIteratorResult.GetShardIterator();
+// 					GetRecordsRequest = Aws::DynamoDBStreams::Model::GetRecordsRequest()
+// 						.WithShardIterator(ShardIterator)
+// 						.WithLimit(10);
+// 					while (!ShardIterator.empty())
+// 					{
+// 						GetRecordsOutcome = ClientRef->GetRecords(GetRecordsRequest);
+// 						if (GetRecordsOutcome.IsSuccess())
+// 						{
+// 							const Aws::DynamoDBStreams::Model::GetRecordsResult Result = GetRecordsOutcome.GetResult();
+// 							const Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = Result.GetRecords();
+// 							UE_LOG(LogTemp, Warning, TEXT("%d records found in shard %s"), Records.size(), *FString(ShardIterator.c_str()));
+// 							
+// 							for (auto Record : Records)
+// 							{
+// 								Aws::Utils::Json::JsonValue JsonVal = Record.Jsonize();
+// 								Aws::String JsonStr = Aws::String();
+// 								JsonVal.AsString(JsonStr);
+// 								UE_LOG(LogTemp, Warning, TEXT("Record: %s"), *FString(JsonStr.c_str()));						
+// 							}
+// 							ShardIterator = Result.GetNextShardIterator();
+// 						} else
+// 						{
+// 							UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"), *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
+// 						}
+// 					}
+// 				} else
+// 				{
+// 					ErrorType = awsGetShardIteratorOutcome.GetError().GetErrorType();
+// 					ErrorMsg = ("GetShardIterator error: " + awsGetShardIteratorOutcome.GetError().GetMessage()).c_str();
+// 					UE_LOG(LogTemp, Warning, TEXT("%s"), *FString(ErrorMsg));
+// 					Completed = true;
+// 				}
+// 			},
+// 			std::make_shared<Aws::Client::AsyncCallerContext>(std::to_string(LatentInfo.UUID).c_str())
+// 			);
+// 	}
+// 	
+// }
+
+// void AMarkerManager::GetDynamoDBStreamsRecordsAsync(
+// 	Aws::DynamoDBStreams::DynamoDBStreamsErrors &ErrorType,
+// 	FString &ErrorMsg,
+// 	const FLatentActionInfo &LatentInfo)
+// {
+// 	bool GetRecordsAsyncSuccess = false;
+// 	Aws::DynamoDBStreams::Model::GetRecordsResult Result;
+// 	ClientRef->GetRecordsAsync(
+// 		GetRecordsRequest, [&GetRecordsAsyncSuccess, &Result, &ErrorType, &ErrorMsg, this](
+// 			const Aws::DynamoDBStreams::DynamoDBStreamsClient *awsDynamoDBStreamsClient,
+// 			const Aws::DynamoDBStreams::Model::GetRecordsRequest &RecordsRequest,
+// 			const Aws::DynamoDBStreams::Model::GetRecordsOutcome &RecordsOutcome,
+// 			const std::shared_ptr<const Aws::Client::AsyncCallerContext> &awsAsyncCallerContext
+// 		) mutable -> void {
+// 			GetRecordsAsyncSuccess = RecordsOutcome.IsSuccess();
+//
+// 			if (GetRecordsAsyncSuccess) {
+// 				const Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = RecordsOutcome.GetResult().GetRecords();
+// 				UE_LOG(LogTemp, Warning, TEXT("%d records found in shard"), Records.size());
+// 				for (auto Record : Records)
+// 				{
+// 					Aws::Utils::Json::JsonValue JsonVal = Record.Jsonize();
+// 					Aws::String JsonStr = Aws::String();
+// 					JsonVal.AsString(JsonStr);
+// 					UE_LOG(LogTemp, Warning, TEXT("Record: %s"), *FString(JsonStr.c_str()));						
+// 				}
+// 			} else
+// 			{
+// 				ErrorType = RecordsOutcome.GetError().GetErrorType();
+// 				ErrorMsg = ("GetRecords error: " + RecordsOutcome.GetError().GetMessage()).c_str();
+// 				UE_LOG(LogTemp, Warning, TEXT("%s"), *FString(ErrorMsg));
+// 			}
+//
+// 		},
+// 		std::make_shared<Aws::Client::AsyncCallerContext>(std::to_string(LatentInfo.UUID).c_str()));
+// }
+
 ALocationMarker* AMarkerManager::CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp, const FString DeviceID, const bool Temporary)
 {
+	// if (GetRecordsRequest.ShardIteratorHasBeenSet())
+	// {
+	// 	GetDynamoDBStreamsRecordsAsync(AErrorType, AErrorMsg, ALatentInfo);
+	// }
+	
 	ALocationMarker* Marker = nullptr;
 	if (!AllMarkers.Contains(GetTypeHash(SpawnLocation, Timestamp, DeviceID)))
 	{
