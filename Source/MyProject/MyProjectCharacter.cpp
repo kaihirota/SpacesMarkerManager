@@ -122,7 +122,7 @@ void AMyProjectCharacter::CreateLocationMarker()
 			}
 			else if (MarkerManager != nullptr)
 			{
-				MarkerManager->CreateMarker(OutHit.ImpactPoint);
+				MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Static);
 			}
 		} 
 	}
@@ -158,12 +158,12 @@ void AMyProjectCharacter::CreateTemporaryMarker()
 			// But MarkerManager does not have reference to FHitResult or "OutHit"
 			if (ATemporaryMarker* HitMarker = Cast<ATemporaryMarker>(OutHit.GetActor()))
 			{
-				HitMarker->IncrementCounter();
+				HitMarker->IncrementCounter(50);
 			} else
 			{
 				if (MarkerManager != nullptr)
 				{
-					MarkerManager->CreateMarker(OutHit.ImpactPoint, true);
+					MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Temporary);
 				}
 			}
 		} 
