@@ -49,8 +49,7 @@ void AMyProjectCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-	AActor* ManagerActor = GetWorld()->SpawnActor<AMarkerManager>(GetActorLocation() + FVector(0.0f, 0.0f, 100.0f), GetActorRotation());
-	MarkerManager = Cast<AMarkerManager>(ManagerActor);
+	MarkerManager = GetWorld()->SpawnActor<AMarkerManager>(GetActorLocation() + FVector(0.0f, 0.0f, 100.0f), GetActorRotation());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -149,8 +148,8 @@ void AMyProjectCharacter::CreateTemporaryMarker()
 					FColor::Red,
 					FString::Printf(
 						TEXT("You are hitting: %s at %s"),
-						*OutHit.ImpactPoint.ToString(),
-						*OutHit.GetActor()->GetName()
+						*OutHit.GetActor()->GetName(),
+						*OutHit.ImpactPoint.ToString()
 					)
 				);
 			}
