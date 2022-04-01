@@ -17,11 +17,13 @@ public:
 
 	/* Initial Counter */
 	UPROPERTY(EditAnywhere)
-    float InitialCounter = 1000;
+    float InitialCounter = 1000.0f;
     
     /* Counter */
 	UPROPERTY(EditAnywhere)
-	int Counter = (int) InitialCounter;
+	int Counter = InitialCounter;
+
+	FTimerHandle TimerHandle;
 
 protected:
 	// Called when the game starts or when spawned
@@ -33,4 +35,7 @@ public:
 	void SetOpacity(float Opacity) const;
 	void IncrementCounter(int Count);
 	void IncrementCounter();
+	void DecrementCounter(int Count);
+	void DecrementCounter();
+	void RepeatingFunction();
 };

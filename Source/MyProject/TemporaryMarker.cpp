@@ -9,28 +9,37 @@ ATemporaryMarker::ATemporaryMarker()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	SetColor(FColor::Red);
+	SetColor(FColor::Cyan);
 }
 
 // Called when the game starts or when spawned
 void ATemporaryMarker::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	// Call RepeatingFunction once per second, starting two seconds from now.
+	// GetWorldTimerManager().SetTimer(TimerHandle, this, &ATemporaryMarker::RepeatingFunction, 0.1f, true, 0.0f);
 }
 
 // Called every frame
 void ATemporaryMarker::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	Counter--;
-	const float Scale = Counter / InitialCounter;
+
+	DecrementCounter(1);
+	float Scale = Counter / InitialCounter;
+	if (Scale > 2.0f)
+	{
+		Scale = 2.0f;
+	}
+	SetActorRelativeScale3D(FVector(Scale, Scale, Scale));
+	// UE_LOG(LogTemp, Warning, TEXT("TemporaryMarker %s counter %d"), *GetName() , Counter);
+	
 	if (Counter <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Destroying %s - %s"), *GetName(), *ToString());
 		Destroy();
 	}
-	else SetActorRelativeScale3D(FVector(Scale, Scale, Scale));
-	// else SetOpacity(Counter / 1000.0f);
 }
 
 void ATemporaryMarker::SetOpacity(const float Opacity) const
@@ -46,4 +55,19 @@ void ATemporaryMarker::IncrementCounter(const int Count)
 void ATemporaryMarker::IncrementCounter()
 {
 	IncrementCounter(InitialCounter / 5);
+}
+
+void ATemporaryMarker::DecrementCounter(const int Count)
+{
+	Counter -= Count;
+}
+
+void ATemporaryMarker::DecrementCounter()
+{
+	DecrementCounter(1);
+}
+
+void ATemporaryMarker::RepeatingFunction()
+{
+	DecrementCounter(1);
 }
