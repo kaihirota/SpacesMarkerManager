@@ -53,6 +53,8 @@ public:
 	void SetOpacity(float Val) const;
 	float GetOpacity() const;
 
+	const FColor BaseColor = FColor::Turquoise;
+
 	UFUNCTION(BlueprintCallable)
 	FString ToString() const;
 	

@@ -18,7 +18,9 @@ public:
 
 	FTimerHandle TimerHandle;
 
-	const float InterpolationsPerSecond = 1000.0f;
+	const float InterpolationsPerSecond = 2000.0f;
+
+	const FColor BaseColor = FColor::Purple;
 
 	// TSharedRef<AMarkerManager> MarkerManager;
 protected:

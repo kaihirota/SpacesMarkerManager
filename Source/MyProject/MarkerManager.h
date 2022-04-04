@@ -7,7 +7,6 @@
 #include "GameFramework/Actor.h"
 #include "LocationMarker.h"
 #include "aws/dynamodb/DynamoDBClient.h"
-#include "Components/TimelineComponent.h"
 #include "MarkerManager.generated.h"
 
 UENUM()

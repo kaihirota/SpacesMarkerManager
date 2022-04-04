@@ -36,7 +36,7 @@ ALocationMarker::ALocationMarker()
 		DynamicMaterial->SetVectorParameterValue(TEXT("Color"), FColor::Green);
 		DynamicMaterial->SetCastShadowAsMasked(false);
 		StaticMeshComp->SetMaterial(0, DynamicMaterial);
-		SetColor(FColor::Emerald);
+		SetColor(BaseColor);
 	}
 }
 
