@@ -14,6 +14,7 @@
 #include "aws/dynamodb/model/GetItemRequest.h"
 #include "aws/dynamodb/model/QueryRequest.h"
 #include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
+#include "Components/TimelineComponent.h"
 #include "Misc/DefaultValueHelper.h"
 
 
@@ -32,29 +33,17 @@ AMarkerManager::AMarkerManager()
 void AMarkerManager::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	InitAPI(Aws::SDKOptions());
-	Aws::Auth::AWSCredentials Creadentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
+	Aws::InitAPI(Aws::SDKOptions());
+	const Aws::Auth::AWSCredentials Credentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
 	Aws::Client::ClientConfiguration Config = Aws::Client::ClientConfiguration();
 	Config.region = REGION;
-	ClientRef = new Aws::DynamoDB::DynamoDBClient(Creadentials, Config);
-	
-	// GetWorld()->GetTimerManager()
-	// 	.SetTimer(TimerHandle, this, &AMarkerManager::RepeatingFunction, 1.0f, true, 1.0f);
+	ClientRef = new Aws::DynamoDB::DynamoDBClient(Credentials, Config);
 }
 
-// void AMarkerManager::RepeatingFunction()
-// {
-// 	for(const auto &Pair: AllMarkers)
-// 	{
-// 		FVector LatestLoc = GetLatestRecord(Pair.Value->DeviceID, Pair.Value->Timestamp);
-// 		if (LatestLoc != FVector::ZeroVector && LatestLoc != Pair.Value->Coordinate)
-// 		{
-// 			UE_LOG(LogTemp, Warning, TEXT("new: %s old: %s"), *LatestLoc.ToString(), *Pair.Value->Coordinate.ToString());
-// 			Pair.Value->SetActorLocation(LatestLoc, true, nullptr, ETeleportType::None);
-// 		}
-// 	}
-// }
+void AMarkerManager::EndPlay(const EEndPlayReason::Type Reason){
+	Super::EndPlay(Reason);
+	Aws::ShutdownAPI(Aws::SDKOptions());
+}
 
 // Called every frame
 void AMarkerManager::Tick(float DeltaTime)
@@ -66,61 +55,41 @@ FVector AMarkerManager::GetLatestRecord(FString TargetDeviceID, FDateTime LastKn
 {
 	Aws::DynamoDB::Model::QueryRequest Request;
 	Request.SetTableName(DynamoDBTableName);
-
-	// Set query key condition expression
-	Aws::String PartitionKeyName = Aws::String("device_id");
-	Aws::String PartitionKeyVal = Aws::String(TCHAR_TO_UTF8(*TargetDeviceID));
-	Request.SetKeyConditionExpression(PartitionKeyName + "= :valueToMatch");
+	Request.SetKeyConditionExpression("device_id = :valueToMatch");
 
 	// Set Expression AttributeValues
 	Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> AttributeValues;
+	Aws::String PartitionKeyVal = Aws::String(TCHAR_TO_UTF8(*TargetDeviceID));
 	AttributeValues.emplace(":valueToMatch", PartitionKeyVal);
 	Request.SetExpressionAttributeValues(AttributeValues);
-
-	FVector LatestLoc = FVector::ZeroVector;
+	Request.SetScanIndexForward(false);
+	Request.SetLimit(1);
 
 	// Perform Query operation
 	const Aws::DynamoDB::Model::QueryOutcome& result = ClientRef->Query(Request);
 	if (result.IsSuccess())
 	{
 		// Reference the retrieved items
-		const Aws::Vector<Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue>>& items = result.GetResult().GetItems();
-		UE_LOG(LogTemp, Warning, TEXT("Number of items retrieved from Query: %d"), items.size());
-		
-		FDateTime LatestRecordTimestamp = LastKnownTimestamp;
-		
-		for(const auto &item: items)
+		for(const auto &Item: result.GetResult().GetItems())
 		{
-			// get name
-			const FString DeviceID = item.at("device_id").GetS().c_str();
-			
 			// get timestamp data
-			Aws::DynamoDB::Model::AttributeValue TimestampValue = item.at("created_timestamp");
+			Aws::DynamoDB::Model::AttributeValue TimestampValue = Item.at("created_timestamp");
 			FDateTime Timestamp = FDateTime::FromUnixTimestamp(std::atoi(TimestampValue.GetS().c_str()));
 			UE_LOG(LogTemp, Warning, TEXT("Timestamp: %d"), Timestamp.ToUnixTimestamp());
-			
-			// get location data
-			float lon, lat, elev;
-			FDefaultValueHelper::ParseFloat(FString(item.at("longitude").GetS().c_str()), lon);
-			FDefaultValueHelper::ParseFloat(FString(item.at("latitude").GetS().c_str()), lat);
-			FDefaultValueHelper::ParseFloat(FString(item.at("elevation").GetS().c_str()), elev);
-			const FVector CurrLocation = FVector(lon, lat, elev);
-			UE_LOG(LogTemp, Warning, TEXT("Device ID: %s Location: %s"), *DeviceID, *CurrLocation.ToString());
-			
-			// hold on to the latest location
-			UE_LOG(LogTemp, Warning, TEXT("%s %s"), *Timestamp.ToIso8601(), *LatestRecordTimestamp.ToIso8601());
-			if (Timestamp > LatestRecordTimestamp)
+
+			if (Timestamp > LastKnownTimestamp)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("AAAAA"));
-				LatestLoc = CurrLocation;
-			};
+				// get location data
+				float lon, lat, elev;
+				FDefaultValueHelper::ParseFloat(FString(Item.at("longitude").GetS().c_str()), lon);
+				FDefaultValueHelper::ParseFloat(FString(Item.at("latitude").GetS().c_str()), lat);
+				FDefaultValueHelper::ParseFloat(FString(Item.at("elevation").GetS().c_str()), elev);
+				return FVector(lon, lat, elev);
+			}
 		}
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Failed to query items: %s"), *FString(result.GetError().GetMessage().c_str()));
-	}
-	return LatestLoc;
+	UE_LOG(LogTemp, Warning, TEXT("Failed to query items: %s"), *FString(result.GetError().GetMessage().c_str()));
+	return FVector::ZeroVector;
 }
 
 ALocationMarker* AMarkerManager::CreateMarkerFromJsonObject(const FJsonObject* JsonObject)
@@ -187,11 +156,6 @@ ALocationMarker* AMarkerManager::CreateMarker(const FVector SpawnLocation, const
 		
 		AllMarkers.Add(GetTypeHash(Marker), Marker);
 		UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), AllMarkers.Num());
-		
-		// for(const auto &Pair: AllMarkers)
-		// {
-		// 	UE_LOG(LogTemp, Warning, TEXT("key: %s value: %s"), *Pair.Key, *Pair.Value->ToString());
-		// }
 	}
 	return Marker;
 }
@@ -239,22 +203,45 @@ void AMarkerManager::GetMarkersFromDB()
 
 void AMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
-	TSharedPtr<FJsonObject> JsonObject;
+	TSharedPtr<FJsonObject> JsonObjArr;
 	if(Response->GetResponseCode() == 200 && bWasSuccessful)
 	{
 		const FString ResponseBody = Response->GetContentAsString();
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseBody);
-		if(FJsonSerializer::Deserialize(Reader, JsonObject))
+		if(FJsonSerializer::Deserialize(Reader, JsonObjArr))
 		{
-			TArray<TSharedPtr<FJsonValue>> MarkerArray = JsonObject->GetArrayField("data");
+			TArray<TSharedPtr<FJsonValue>> MarkerArray = JsonObjArr->GetArrayField("data");
 			UE_LOG(LogTemp, Warning, TEXT("Fetch Success: %d items"), MarkerArray.Num());
+			// for dynamic markers, spawn the last location
+			TMap<FString, FJsonObject*> DynamicMarkers;
+			
 			for(const TSharedPtr<FJsonValue>& MarkerValue : MarkerArray)
 			{
 				// how to determine if new marker should be spawned, or not?
 				// no marker with same device id, time, and coordinates can co exist
-				ALocationMarker* Marker = CreateMarkerFromJsonObject(MarkerValue->AsObject().Get());
-				if (Marker != nullptr) UE_LOG(LogTemp, Log, TEXT("Created Marker: %s %s"), *Marker->GetName(), *Marker->ToString());
+				FJsonObject* JsonObject = MarkerValue->AsObject().Get();
+				if(JsonObject->HasField("marker_type") && JsonObject->HasField("device_id") && JsonObject->HasField("created_timestamp"))
+				{
+					FString MarkerType = JsonObject->GetStringField("marker_type");// == FString("dynamic")
+					FString DeviceID = JsonObject->GetStringField("device_id");
+					
+					FString TimestampStr = JsonObject->GetStringField("created_timestamp");
+					FDateTime Timestamp = FDateTime::FromUnixTimestamp(FCString::Atoi(*TimestampStr));
+					UE_LOG(LogTemp, Log, TEXT("Timestamp: %s"), *Timestamp.ToString());
+					DynamicMarkers.Add(DeviceID, JsonObject);
+				} else
+				{
+					const ALocationMarker* Marker = CreateMarkerFromJsonObject(JsonObject);
+					if (Marker != nullptr) UE_LOG(LogTemp, Log, TEXT("Created Marker: %s %s"), *Marker->GetName(), *Marker->ToString());
+				}
 			}
+
+			for (const auto DMarker : DynamicMarkers)
+			{
+				const ALocationMarker* Marker = CreateMarkerFromJsonObject(DMarker.Value);
+				if (Marker != nullptr) UE_LOG(LogTemp, Log, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(), *Marker->ToString());
+			} 
+			
 		}
 	}
 	else

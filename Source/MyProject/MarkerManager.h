@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "LocationMarker.h"
 #include "aws/dynamodb/DynamoDBClient.h"
+#include "Components/TimelineComponent.h"
 #include "MarkerManager.generated.h"
 
 UENUM()
@@ -70,6 +71,7 @@ protected:
 	void RepeatingFunction();
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

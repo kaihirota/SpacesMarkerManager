@@ -4,6 +4,7 @@
 #include "DynamicMarker.h"
 
 #include "MarkerManager.h"
+#include "Curves/CurveVector.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -19,33 +20,49 @@ ADynamicMarker::ADynamicMarker()
 void ADynamicMarker::BeginPlay()
 {
 	Super::BeginPlay();
+	// SetReplicates(true);
+	// SetReplicateMovement(true);
+	PreviousLocation = GetActorLocation();
+	NextLocation = GetActorLocation();
+	
 	GetWorld()->GetTimerManager()
 		.SetTimer(TimerHandle, this, &ADynamicMarker::RepeatingFunction, 1.0f, true, 1.0f);
+}
+
+void ADynamicMarker::UpdateLocation(const FVector Location)
+{
+	PreviousLocation = GetActorLocation();
+	this->NextLocation = Location;
 }
 
 // Called every frame
 void ADynamicMarker::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (PreviousLocation != NextLocation)
+	{
+		Step = FMath::VInterpConstantTo(GetActorLocation(), this->NextLocation, DeltaTime, InterpolationsPerSecond);
+		SetActorLocation(Step, true, nullptr, ETeleportType::None);
+	}
 }
 
 void ADynamicMarker::RepeatingFunction()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Hello"));
 	if(ManagerDelegate.IsBound())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Requesting new location for : %s at %s"), *this->ToString(), *GetActorLocation().ToString());
-		const FVector LatestLocation = ManagerDelegate.Execute(this->DeviceID, this->Timestamp);
-		if (LatestLocation != FVector::ZeroVector)
+		const FVector NewLocation = ManagerDelegate.Execute(this->DeviceID, this->Timestamp);
+		if (NewLocation != FVector::ZeroVector)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Latest Location: %s"), *LatestLocation.ToString());
-			if (LatestLocation != GetActorLocation())
+			UE_LOG(LogTemp, Warning, TEXT("Marker: %s Current loc: %s Next Location: %s"), *this->ToString(), *GetActorLocation().ToString(), *NextLocation.ToString());
+			if (NewLocation != GetActorLocation())
 			{
-				SetActorLocation(LatestLocation, true, nullptr, ETeleportType::None);
+				// SetActorLocation(NextLocation, true, nullptr, ETeleportType::None);
+				UpdateLocation(NewLocation);
 			}
 		} else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Location not updated for marker ID %s: Current loc: %s"), *DeviceID, *GetActorLocation().ToString());
+			UE_LOG(LogTemp, Warning, TEXT("Location not updated for marker %s: Current loc: %s"), *this->ToString(), *GetActorLocation().ToString());
 		}
 	} else
 	{

@@ -18,6 +18,8 @@ public:
 
 	FTimerHandle TimerHandle;
 
+	const float InterpolationsPerSecond = 1000.0f;
+
 	// TSharedRef<AMarkerManager> MarkerManager;
 protected:
 	// Called when the game starts or when spawned
@@ -30,6 +32,26 @@ public:
 
 	DECLARE_DELEGATE_RetVal_TwoParams(FVector, FMarkerManagerDelegate, FString, FDateTime)
 	FMarkerManagerDelegate ManagerDelegate;
+
+	UFUNCTION()
+	void UpdateLocation(FVector Location);
+	
+	FVector NextLocation;
+	FVector PreviousLocation;
+	FVector Step;
+
+	// UTimelineComponent* platformTimeline;
+	//
+	// //Delegate signature for the function which will handle our Finished event.
+	// FOnTimelineEvent TimelineFinishedEvent;
+	//
+	// UFUNCTION()
+	// void TimelineFinishedFunction();
+	//
+
+	
+	// FOnTimelineFloat InterpFunction;
+	// FTimeline Timeline;
 	
 	// DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FVector, FMarkerManagerDelegate, FString, FDateTime );
 };
