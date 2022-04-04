@@ -44,7 +44,7 @@ void ALocationMarker::ToggleSelection()
 {
 	Selected = !Selected;
 	if (Selected) SetColor(FColor::Red);
-	else SetColor(FColor::Emerald);
+	else SetColor(BaseColor);
 	UE_LOG(LogTemp, Log, TEXT("%s: %s - %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *GetName(), *ToString());
 }
 
