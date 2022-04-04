@@ -57,8 +57,6 @@ public:
 
 	// UPROPERTY(BlueprintReadOnly)
 	// TArray<ALocationMarker*> Selected;
-
-	// TMultiMap<FString, ALocationMarker*> AllMarkers; // Device ID
 	TMap<uint32, ALocationMarker*> AllMarkers; // hash
 	
 	Aws::DynamoDB::DynamoDBClient* ClientRef;
