@@ -19,8 +19,8 @@ ADynamicMarker::ADynamicMarker()
 void ADynamicMarker::BeginPlay()
 {
 	Super::BeginPlay();
-	// GetWorld()->GetTimerManager()
-	// 	.SetTimer(TimerHandle, this, &ADynamicMarker::RepeatingFunction, 1.0f, true, 1.0f);
+	GetWorld()->GetTimerManager()
+		.SetTimer(TimerHandle, this, &ADynamicMarker::RepeatingFunction, 1.0f, true, 1.0f);
 }
 
 // Called every frame
@@ -29,28 +29,26 @@ void ADynamicMarker::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-// void ADynamicMarker::RepeatingFunction()
-// {
-// 	UE_LOG(LogTemp, Warning, TEXT("Hello"));
-// 	FMarkerManagerDelegate MarkerManagerDelegate;
-// 	
-// 	MarkerManagerDelegate.BindRaw(&AMarkerManager::GetLatestRecord, DeviceID, Timestamp);
-// 	
-// 	AActor* MarkerManagerActor = UGameplayStatics::GetActorOfClass(GetWorld(), ALocationMarker::StaticClass());
-// 	MarkerManager = Cast<AMarkerManager>(MarkerManagerActor);
-// 	if (MarkerManager != nullptr)
-// 	{
-// 		FVector LatestLocation = MarkerManager->GetLatestRecord(this->DeviceID, this->Timestamp);
-// 		if (LatestLocation != FVector::ZeroVector)
-// 		{
-// 			UE_LOG(LogTemp, Warning, TEXT("Latest Location: %s  Curr Location: %s"), *LatestLocation.ToString(), *GetActorLocation().ToString());
-// 			if (LatestLocation != GetActorLocation())
-// 			{
-// 				SetActorLocation(LatestLocation, true, nullptr, ETeleportType::None);
-// 			}
-// 		}
-// 	} else
-// 	{
-// 		UE_LOG(LogTemp, Warning, TEXT("No reference to MarkerManager found"));
-// 	}
-// }
+void ADynamicMarker::RepeatingFunction()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Hello"));
+	if(ManagerDelegate.IsBound())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Requesting new location for : %s at %s"), *this->ToString(), *GetActorLocation().ToString());
+		const FVector LatestLocation = ManagerDelegate.Execute(this->DeviceID, this->Timestamp);
+		if (LatestLocation != FVector::ZeroVector)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Latest Location: %s"), *LatestLocation.ToString());
+			if (LatestLocation != GetActorLocation())
+			{
+				SetActorLocation(LatestLocation, true, nullptr, ETeleportType::None);
+			}
+		} else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Location not updated for marker ID %s: Current loc: %s"), *DeviceID, *GetActorLocation().ToString());
+		}
+	} else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No reference to MarkerManager found"));
+	}
+}

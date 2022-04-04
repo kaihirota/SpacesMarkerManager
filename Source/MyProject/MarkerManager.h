@@ -62,7 +62,8 @@ public:
 	TMap<uint32, ALocationMarker*> AllMarkers; // hash
 	
 	Aws::DynamoDB::DynamoDBClient* ClientRef;
-	
+
+	UFUNCTION(BlueprintCallable)
 	FVector GetLatestRecord(FString DeviceID, FDateTime Timestamp);
 
 protected:

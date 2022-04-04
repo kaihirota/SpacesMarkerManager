@@ -18,8 +18,7 @@ public:
 
 	FTimerHandle TimerHandle;
 
-	AMarkerManager* MarkerManager;
-
+	// TSharedRef<AMarkerManager> MarkerManager;
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -27,6 +26,10 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	// void RepeatingFunction();
-	// DECLARE_DELEGATE_RetVal_TwoParams(FVector, FMarkerManagerDelegate, FString, FDateTime)
+	void RepeatingFunction();
+
+	DECLARE_DELEGATE_RetVal_TwoParams(FVector, FMarkerManagerDelegate, FString, FDateTime)
+	FMarkerManagerDelegate ManagerDelegate;
+	
+	// DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FVector, FMarkerManagerDelegate, FString, FDateTime );
 };
