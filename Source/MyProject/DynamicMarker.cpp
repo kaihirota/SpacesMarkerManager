@@ -2,9 +2,6 @@
 
 
 #include "DynamicMarker.h"
-
-#include "MarkerManager.h"
-#include "Curves/CurveVector.h"
 #include "Kismet/GameplayStatics.h"
 
 

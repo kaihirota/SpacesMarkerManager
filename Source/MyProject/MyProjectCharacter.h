@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MarkerManager.h"
+#include "MojexaSpacesMarkerManager.h"
 #include "GameFramework/Character.h"
 #include "MyProjectCharacter.generated.h"
 
@@ -56,7 +56,7 @@ public:
 	TSubclassOf<class ALocationMarker> MarkerClass;
 	
 	UPROPERTY(BlueprintReadWrite)
-	AMarkerManager* MarkerManager;
+	UMojexaSpacesMarkerManager* MarkerManager;
 
 protected:
 	
@@ -65,9 +65,6 @@ protected:
 	void CreateTemporaryMarker();
 	void GetMarkers();
 	void RemoveSelectedMarkers();
-
-	/** Resets HMD orientation and position in VR. */
-	void OnResetVR();
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);

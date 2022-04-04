@@ -8,9 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/InputSettings.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "LocationMarker.h"
-#include "MarkerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
 #include "TemporaryMarker.h"
@@ -49,7 +47,7 @@ void AMyProjectCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-	MarkerManager = GetWorld()->SpawnActor<AMarkerManager>(GetActorLocation() + FVector(0.0f, 0.0f, 100.0f), GetActorRotation());
+	MarkerManager = GetWorld()->GetGameInstance<UMojexaSpacesMarkerManager>();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -73,8 +71,6 @@ void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 
 	PlayerInputComponent->BindAction("GetMarkers", IE_Pressed, this, &AMyProjectCharacter::GetMarkers);
 	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this, &AMyProjectCharacter::RemoveSelectedMarkers);
-
-	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &AMyProjectCharacter::OnResetVR);
 
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
@@ -185,12 +181,6 @@ void AMyProjectCharacter::RemoveSelectedMarkers()
 	{
 		MarkerManager->DeleteSelectedMarkers();
 	}
-}
-
-
-void AMyProjectCharacter::OnResetVR()
-{
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
 }
 
 void AMyProjectCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
