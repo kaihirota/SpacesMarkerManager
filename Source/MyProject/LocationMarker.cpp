@@ -84,7 +84,7 @@ TSharedRef<FJsonObject> ALocationMarker::ToJsonObject() const
 	
 	if (!DeviceID.IsEmpty()) JsonObject->SetStringField("device_id", this->DeviceID);
 	else JsonObject->SetStringField("device_id", FString(""));
-	JsonObject->SetNumberField("created_timestamp", this->Timestamp.ToUnixTimestamp());
+	JsonObject->SetStringField("created_timestamp", FString::FromInt(Timestamp.ToUnixTimestamp()));
 	JsonObject->SetStringField("longitude", FString::SanitizeFloat(this->Coordinate.X));
 	JsonObject->SetStringField("latitude", FString::SanitizeFloat(this->Coordinate.Y));
 	JsonObject->SetStringField("elevation", FString::SanitizeFloat(this->Coordinate.Z));
