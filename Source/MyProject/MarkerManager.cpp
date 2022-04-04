@@ -188,7 +188,6 @@ ALocationMarker* AMarkerManager::CreateMarker(const FVector SpawnLocation, const
 		AllMarkers.Add(GetTypeHash(Marker), Marker);
 		UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), AllMarkers.Num());
 		
-		CreateMarkerInDB(Marker);
 		// for(const auto &Pair: AllMarkers)
 		// {
 		// 	UE_LOG(LogTemp, Warning, TEXT("key: %s value: %s"), *Pair.Key, *Pair.Value->ToString());

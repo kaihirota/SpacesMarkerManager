@@ -60,6 +60,18 @@ FLinearColor ALocationMarker::GetColor() const
 	return Color;
 }
 
+void ALocationMarker::SetOpacity(const float Val) const
+{
+	DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), Val);
+}
+
+float ALocationMarker::GetOpacity() const
+{
+	float Opacity;
+	DynamicMaterial->GetScalarParameterValue(TEXT("Opacity"), Opacity);
+	return Opacity; 
+}
+
 FString ALocationMarker::ToString() const
 {
 	TArray< FStringFormatArg > Args;
@@ -101,7 +113,6 @@ void ALocationMarker::BeginDestroy()
 {
 	Super::BeginDestroy();
 }
-
 
 // Called every frame
 void ALocationMarker::Tick(const float DeltaTime)

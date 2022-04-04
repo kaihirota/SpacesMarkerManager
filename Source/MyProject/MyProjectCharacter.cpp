@@ -121,7 +121,8 @@ void AMyProjectCharacter::CreateLocationMarker()
 			}
 			else if (MarkerManager != nullptr)
 			{
-				MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Static);
+				Marker = MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Static);
+				MarkerManager->CreateMarkerInDB(Marker);
 			}
 		} 
 	}

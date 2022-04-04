@@ -50,6 +50,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetColor(const FLinearColor Color) const;
 	FLinearColor GetColor() const;
+	void SetOpacity(float Val) const;
+	float GetOpacity() const;
 
 	UFUNCTION(BlueprintCallable)
 	FString ToString() const;
