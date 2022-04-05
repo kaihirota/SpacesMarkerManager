@@ -41,6 +41,12 @@ public:
 	FVector PreviousLocation;
 	FVector Step;
 
+	UPROPERTY(BlueprintReadWrite)
+	float PollIntervalInSeconds = 3.0f;
+	
+	UPROPERTY(BlueprintReadWrite)
+	float InitialDelay = 3.0f;
+
 	// UTimelineComponent* platformTimeline;
 	//
 	// //Delegate signature for the function which will handle our Finished event.

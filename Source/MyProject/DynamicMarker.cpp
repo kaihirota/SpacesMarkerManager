@@ -26,7 +26,7 @@ void ADynamicMarker::BeginPlay()
 	NextLocation = GetActorLocation();
 
 	GetWorld()->GetTimerManager()
-	          .SetTimer(TimerHandle, this, &ADynamicMarker::RepeatingFunction, 1.0f, true, 1.0f);
+	          .SetTimer(TimerHandle, this, &ADynamicMarker::RepeatingFunction, PollIntervalInSeconds, true, InitialDelay);
 }
 
 void ADynamicMarker::UpdateLocation(const FVector Location)
