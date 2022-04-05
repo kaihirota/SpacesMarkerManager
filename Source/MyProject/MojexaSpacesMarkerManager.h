@@ -45,7 +45,10 @@ public:
 	ALocationMarker* CreateMarkerFromJsonObject(const FJsonObject* JsonObject);
 
 	UFUNCTION(BlueprintCallable)
-	bool CreateMarkerInDB(ALocationMarker* Marker);
+	bool CreateMarkerInDB(const ALocationMarker* Marker);
+
+	UFUNCTION(BlueprintCallable)
+	bool CreateMarkerInDBByAPI(ALocationMarker* Marker);
 	
 	UFUNCTION(BlueprintCallable)
 	void GetMarkersFromDB();

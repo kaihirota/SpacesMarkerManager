@@ -11,6 +11,7 @@
 #include "aws/core/auth/AWSCredentials.h"
 #include "aws/core/client/ClientConfiguration.h"
 #include "aws/dynamodb/DynamoDBClient.h"
+#include "aws/dynamodb/model/PutItemRequest.h"
 #include "aws/dynamodb/model/QueryRequest.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -28,7 +29,7 @@ void UMojexaSpacesMarkerManager::Init()
 	Aws::InitAPI(Aws::SDKOptions());
 	const Aws::Auth::AWSCredentials Credentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
 	Aws::Client::ClientConfiguration Config = Aws::Client::ClientConfiguration();
-	Config.region = REGION;
+	Config.region = MojexaSpacesAwsRegion;
 	ClientRef = new Aws::DynamoDB::DynamoDBClient(Credentials, Config);
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initialized"));
 }
@@ -40,11 +41,15 @@ void UMojexaSpacesMarkerManager::Shutdown()
 }
 
 
+/*
+ * Given a Device ID, fetch the latest location recorded strictly
+ * after the LastKnownTimestamp
+ */
 FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDateTime LastKnownTimestamp)
 {
 	Aws::DynamoDB::Model::QueryRequest Request;
 	Request.SetTableName(DynamoDBTableName);
-	Request.SetKeyConditionExpression("device_id = :valueToMatch");
+	Request.SetKeyConditionExpression(PartitionKeyAttributeNameAws + " = :valueToMatch");
 
 	// Set Expression AttributeValues
 	Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> AttributeValues;
@@ -62,7 +67,7 @@ FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDat
 		for(const auto &Item: result.GetResult().GetItems())
 		{
 			// get timestamp data
-			Aws::DynamoDB::Model::AttributeValue TimestampValue = Item.at("created_timestamp");
+			Aws::DynamoDB::Model::AttributeValue TimestampValue = Item.at(SortKeyAttributeNameAws);
 			FDateTime Timestamp = FDateTime::FromUnixTimestamp(std::atoi(TimestampValue.GetS().c_str()));
 			UE_LOG(LogTemp, Warning, TEXT("Timestamp: %d"), Timestamp.ToUnixTimestamp());
 
@@ -70,9 +75,9 @@ FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDat
 			{
 				// get location data
 				float lon, lat, elev;
-				FDefaultValueHelper::ParseFloat(FString(Item.at("longitude").GetS().c_str()), lon);
-				FDefaultValueHelper::ParseFloat(FString(Item.at("latitude").GetS().c_str()), lat);
-				FDefaultValueHelper::ParseFloat(FString(Item.at("elevation").GetS().c_str()), elev);
+				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionXAttributeNameAws).GetS().c_str()), lon);
+				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionYAttributeNameAws).GetS().c_str()), lat);
+				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionYAttributeNameAws).GetS().c_str()), elev);
 				return FVector(lon, lat, elev);
 			}
 		}
@@ -83,11 +88,11 @@ FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDat
 
 ALocationMarker* UMojexaSpacesMarkerManager::CreateMarkerFromJsonObject(const FJsonObject* JsonObject)
 {
-	const FDateTime Timestamp = FDateTime::FromUnixTimestamp(FCString::Atoi(*JsonObject->GetStringField("created_timestamp")));
+	const FDateTime Timestamp = FDateTime::FromUnixTimestamp(FCString::Atoi(*JsonObject->GetStringField(SortKeyAttributeName)));
 	FString MarkerTypeStr;
 	ELocationMarkerType MarkerType = ELocationMarkerType::Static;
 	
-	if (JsonObject->TryGetStringField("marker_type", MarkerTypeStr))
+	if (JsonObject->TryGetStringField(MarkerTypeAttributeName, MarkerTypeStr))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Marker type Field: %s"), *MarkerTypeStr);
 		if (MarkerTypeStr == FString("dynamic"))
@@ -96,11 +101,11 @@ ALocationMarker* UMojexaSpacesMarkerManager::CreateMarkerFromJsonObject(const FJ
 		}
 	}
 	return CreateMarker(FVector(
-		JsonObject->GetNumberField("longitude"),
-		JsonObject->GetNumberField("latitude"),
-		JsonObject->GetNumberField("elevation")),
+		JsonObject->GetNumberField(PositionXAttributeName),
+		JsonObject->GetNumberField(PositionYAttributeName),
+		JsonObject->GetNumberField(PositionZAttributeName)),
 		Timestamp,
-		JsonObject->GetStringField("device_id"),
+		JsonObject->GetStringField(PartitionKeyAttributeName),
 		MarkerType);
 }
 
@@ -149,7 +154,43 @@ ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLoc
 	return Marker;
 }
 
-bool UMojexaSpacesMarkerManager::CreateMarkerInDB(ALocationMarker* Marker)
+/*
+ * Create new entry in DynamoDB from the given Location Marker using the aws-sdk DynamoDB client
+ */
+bool UMojexaSpacesMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
+{
+	Aws::DynamoDB::Model::PutItemRequest Request;
+	Request.SetTableName(DynamoDBTableName);
+	
+	Aws::DynamoDB::Model::AttributeValue PartitionKeyValue;
+	PartitionKeyValue.SetS(Aws::String(TCHAR_TO_UTF8(*Marker->DeviceID)));
+	Request.AddItem(PartitionKeyAttributeNameAws, PartitionKeyValue);
+
+	Aws::DynamoDB::Model::AttributeValue SortKeyValue;
+	SortKeyValue.SetS(Aws::String(TCHAR_TO_UTF8(*FString::FromInt(Marker->Timestamp.ToUnixTimestamp()))));
+	Request.AddItem(SortKeyAttributeNameAws, SortKeyValue);
+
+	Aws::DynamoDB::Model::AttributeValue Lon, Lat, Elev;
+	Lon.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->Coordinate.X))));
+	Request.AddItem(PositionXAttributeNameAws, Lon);
+
+	Lat.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->Coordinate.Y))));
+	Request.AddItem(PositionYAttributeNameAws, Lat);
+
+	Elev.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->Coordinate.Z))));
+	Request.AddItem(PositionZAttributeNameAws, Elev);
+	
+	Aws::DynamoDB::Model::PutItemOutcome Outcome = ClientRef->PutItem(Request);
+	if (Outcome.IsSuccess())
+	{
+		return true;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Put item failed: %s"), *FString(Outcome.GetError().GetMessage().c_str()));
+	return false;
+}
+
+
+bool UMojexaSpacesMarkerManager::CreateMarkerInDBByAPI(ALocationMarker* Marker)
 {
 	FHttpModule* Http = &FHttpModule::Get();
 	if (Http != nullptr)
@@ -209,12 +250,12 @@ void UMojexaSpacesMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, F
 				// how to determine if new marker should be spawned, or not?
 				// no marker with same device id, time, and coordinates can co exist
 				FJsonObject* JsonObject = MarkerValue->AsObject().Get();
-				if(JsonObject->HasField("marker_type") && JsonObject->HasField("device_id") && JsonObject->HasField("created_timestamp"))
+				if(JsonObject->HasField(MarkerTypeAttributeName) && JsonObject->HasField(PartitionKeyAttributeName) && JsonObject->HasField(SortKeyAttributeName))
 				{
-					FString MarkerType = JsonObject->GetStringField("marker_type");// == FString("dynamic")
-					FString DeviceID = JsonObject->GetStringField("device_id");
+					FString MarkerType = JsonObject->GetStringField(MarkerTypeAttributeName);// == FString("dynamic")
+					FString DeviceID = JsonObject->GetStringField(PartitionKeyAttributeName);
 					
-					FString TimestampStr = JsonObject->GetStringField("created_timestamp");
+					FString TimestampStr = JsonObject->GetStringField(SortKeyAttributeName);
 					FDateTime Timestamp = FDateTime::FromUnixTimestamp(FCString::Atoi(*TimestampStr));
 					UE_LOG(LogTemp, Log, TEXT("Timestamp: %s"), *Timestamp.ToString());
 					DynamicMarkers.Add(DeviceID, JsonObject);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Settings.h"
 #include "GameFramework/Actor.h"
 #include "LocationMarker.generated.h"
 
@@ -91,13 +92,13 @@ inline uint32 GetTypeHash(const ALocationMarker& Thing)
 inline uint32 GetTypeHash(const FVector Coordinate, const FDateTime Timestamp, const FString DeviceID)
 {
 	const TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-	if (!DeviceID.IsEmpty()) JsonObject->SetStringField("device_id", DeviceID);
-	else JsonObject->SetStringField("device_id", FString(""));
-	JsonObject->SetNumberField("created_timestamp", Timestamp.ToUnixTimestamp());
-	JsonObject->SetStringField("longitude", FString::SanitizeFloat(Coordinate.X));
-	JsonObject->SetStringField("latitude", FString::SanitizeFloat(Coordinate.Y));
-	JsonObject->SetStringField("elevation", FString::SanitizeFloat(Coordinate.Z));
 
+	if (!DeviceID.IsEmpty()) JsonObject->SetStringField(PartitionKeyAttributeName, DeviceID);
+	else JsonObject->SetStringField(PartitionKeyAttributeName, FString(""));
+	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(Timestamp.ToUnixTimestamp()));
+	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(Coordinate.X));
+	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(Coordinate.Y));
+	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(Coordinate.Z));
 	FString OutputString;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
 	FJsonSerializer::Serialize(JsonObject, Writer);

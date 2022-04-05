@@ -1,5 +1,6 @@
 #include "LocationMarker.h"
 
+#include "Settings.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/EngineTypes.h"
@@ -94,12 +95,12 @@ TSharedRef<FJsonObject> ALocationMarker::ToJsonObject() const
 {
 	const TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	
-	if (!DeviceID.IsEmpty()) JsonObject->SetStringField("device_id", this->DeviceID);
-	else JsonObject->SetStringField("device_id", FString(""));
-	JsonObject->SetStringField("created_timestamp", FString::FromInt(Timestamp.ToUnixTimestamp()));
-	JsonObject->SetStringField("longitude", FString::SanitizeFloat(this->Coordinate.X));
-	JsonObject->SetStringField("latitude", FString::SanitizeFloat(this->Coordinate.Y));
-	JsonObject->SetStringField("elevation", FString::SanitizeFloat(this->Coordinate.Z));
+	if (!DeviceID.IsEmpty()) JsonObject->SetStringField(PartitionKeyAttributeName, this->DeviceID);
+	else JsonObject->SetStringField(PartitionKeyAttributeName, FString(""));
+	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(Timestamp.ToUnixTimestamp()));
+	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(this->Coordinate.X));
+	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(this->Coordinate.Y));
+	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(this->Coordinate.Z));
 	return JsonObject;
 }
 
