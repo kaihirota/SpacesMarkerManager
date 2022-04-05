@@ -123,41 +123,36 @@ ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLoc
 ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp,
                                                           const FString DeviceID, const ELocationMarkerType MarkerType)
 {
-	ALocationMarker* Marker = nullptr;
-	if (!AllMarkers.Contains(GetTypeHash(SpawnLocation, Timestamp, DeviceID)))
+	AActor* MarkerActor;
+
+	switch (MarkerType)
 	{
-		AActor* MarkerActor;
-
-		switch (MarkerType)
-		{
-		case ELocationMarkerType::Static:
-			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(SpawnLocation, FRotator::ZeroRotator);
-			break;
-		case ELocationMarkerType::Temporary:
-			MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(SpawnLocation, FRotator::ZeroRotator);
-			break;
-		case ELocationMarkerType::Dynamic:
-			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(SpawnLocation, FRotator::ZeroRotator);
-			ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor);
-			DynamicMarker->ManagerDelegate.BindUFunction(this, FName("GetLatestRecord"));
-			break;
-		}
-
-		Marker = Cast<ALocationMarker>(MarkerActor);
-		if (Marker != nullptr)
-		{
-			// TODO convert UE coord to WGS84
-			Marker->Coordinate = SpawnLocation;
-			Marker->Timestamp = Timestamp;
-			Marker->DeviceID = DeviceID;
-
-			UE_LOG(LogTemp, Warning, TEXT("Created %s - %s"), *Marker->GetName(), *Marker->ToString());
-			UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToJsonString());
-		}
-
-		AllMarkers.Add(GetTypeHash(Marker), Marker);
-		UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), AllMarkers.Num());
+	case ELocationMarkerType::Static:
+		MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(SpawnLocation, FRotator::ZeroRotator);
+		break;
+	case ELocationMarkerType::Temporary:
+		MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(SpawnLocation, FRotator::ZeroRotator);
+		break;
+	case ELocationMarkerType::Dynamic:
+		MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(SpawnLocation, FRotator::ZeroRotator);
+		ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor);
+		DynamicMarker->ManagerDelegate.BindUFunction(this, FName("GetLatestRecord"));
+		break;
 	}
+
+	ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor);
+	if (Marker != nullptr)
+	{
+		Marker->Coordinate = SpawnLocation;
+		Marker->Timestamp = Timestamp;
+		Marker->DeviceID = DeviceID;
+
+		UE_LOG(LogTemp, Warning, TEXT("Created %s - %s"), *Marker->GetName(), *Marker->ToString());
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToJsonString());
+	}
+
+	AllMarkers.Add(DeviceID, Marker);
+	UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), AllMarkers.Num());
 	return Marker;
 }
 
@@ -272,14 +267,15 @@ void UMojexaSpacesMarkerManager::GetMarkersFromDB()
 			} 
 			for (const auto DMarker : DynamicMarkers)
 			{
-				// TODO create only if AllMarkers doesn't contain its device ID
-				// if (!AllMarkers.Contains(GetTypeHash(DMarker.Value)))
-				
-				ALocationMarker* CreatedMarker = CreateMarkerFromJsonObject(DMarker.Value);
-				if (CreatedMarker != nullptr)
+				// spawn only if AllMarkers doesn't contain the device ID
+				if (!AllMarkers.Contains(DMarker.Value->GetStringField(PartitionKeyAttributeName)))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *CreatedMarker->GetName(),
-				   *CreatedMarker->ToString());
+					ALocationMarker* CreatedMarker = CreateMarkerFromJsonObject(DMarker.Value);
+					if (CreatedMarker != nullptr)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *CreatedMarker->GetName(),
+					   *CreatedMarker->ToString());
+					}
 				}
 			}
 		} else
@@ -373,7 +369,7 @@ void UMojexaSpacesMarkerManager::DeleteMarker(ALocationMarker* Marker, bool Dele
 		{
 			DeleteMarkerFromDB(Marker);
 		}
-		AllMarkers.FindAndRemoveChecked(GetTypeHash(Marker));
+		AllMarkers.FindAndRemoveChecked(Marker->DeviceID);
 	}
 }
 

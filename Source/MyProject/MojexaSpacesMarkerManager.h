@@ -23,8 +23,7 @@ UCLASS()
 class MYPROJECT_API UMojexaSpacesMarkerManager : public UGameInstance
 {
 public:
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TMap<uint32, ALocationMarker*> AllMarkers;
+	TMap<FString, ALocationMarker*> AllMarkers;
 
 	Aws::DynamoDB::DynamoDBClient* ClientRef;
 private:
