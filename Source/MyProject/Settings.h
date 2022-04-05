@@ -32,3 +32,6 @@ static const Aws::String PositionXAttributeNameAws = FStringToAwsString("longitu
 static const Aws::String PositionYAttributeNameAws = FStringToAwsString("latitude");
 static const Aws::String PositionZAttributeNameAws = FStringToAwsString("elevation");
 static const Aws::String MarkerTypeAttributeNameAws = FStringToAwsString("marker_type");
+
+static const bool UseDynamoDBLocal = true;
+static const Aws::String DynamoDBLocalEndpoint = "http://localhost:8000";

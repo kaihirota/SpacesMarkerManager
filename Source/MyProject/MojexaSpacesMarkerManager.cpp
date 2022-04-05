@@ -30,6 +30,8 @@ void UMojexaSpacesMarkerManager::Init()
 	const Aws::Auth::AWSCredentials Credentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
 	Aws::Client::ClientConfiguration Config = Aws::Client::ClientConfiguration();
 	Config.region = MojexaSpacesAwsRegion;
+
+	if(UseDynamoDBLocal) Config.endpointOverride = DynamoDBLocalEndpoint;
 	ClientRef = new Aws::DynamoDB::DynamoDBClient(Credentials, Config);
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initialized"));
 }
@@ -38,6 +40,7 @@ void UMojexaSpacesMarkerManager::Shutdown()
 {
 	Super::Shutdown();
 	Aws::ShutdownAPI(Aws::SDKOptions());
+	UE_LOG(LogTemp, Warning, TEXT("Game instance shutdown complete"));
 }
 
 
