@@ -63,14 +63,17 @@ void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event
-	PlayerInputComponent->BindAction("CreateLocationMarker", IE_Pressed, this, &AMyProjectCharacter::CreateLocationMarker);
-	PlayerInputComponent->BindAction("CreateTemporaryMarker", IE_Pressed, this, &AMyProjectCharacter::CreateTemporaryMarker);
+	PlayerInputComponent->BindAction("CreateLocationMarker", IE_Pressed, this,
+	                                 &AMyProjectCharacter::CreateLocationMarker);
+	PlayerInputComponent->BindAction("CreateTemporaryMarker", IE_Pressed, this,
+	                                 &AMyProjectCharacter::CreateTemporaryMarker);
 
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
 
 	PlayerInputComponent->BindAction("GetMarkers", IE_Pressed, this, &AMyProjectCharacter::GetMarkers);
-	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this, &AMyProjectCharacter::RemoveSelectedMarkers);
+	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this,
+	                                 &AMyProjectCharacter::RemoveSelectedMarkers);
 
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
@@ -95,11 +98,12 @@ void AMyProjectCharacter::CreateLocationMarker()
 
 	DrawDebugLine(GetWorld(), Start, End, FColor::Emerald, false, 1, 0, 1);
 
-	if(GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, CollisionParams)) 
+	if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, CollisionParams))
 	{
-		if(OutHit.bBlockingHit)
+		if (OutHit.bBlockingHit)
 		{
-			if (GEngine) {
+			if (GEngine)
+			{
 				GEngine->AddOnScreenDebugMessage(
 					-1,
 					3.f,
@@ -120,7 +124,7 @@ void AMyProjectCharacter::CreateLocationMarker()
 				Marker = MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Static);
 				MarkerManager->CreateMarkerInDB(Marker);
 			}
-		} 
+		}
 	}
 }
 
@@ -134,11 +138,12 @@ void AMyProjectCharacter::CreateTemporaryMarker()
 
 	DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1, 0, 1);
 
-	if(GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, CollisionParams)) 
+	if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, CollisionParams))
 	{
-		if(OutHit.bBlockingHit)
+		if (OutHit.bBlockingHit)
 		{
-			if (GEngine) {
+			if (GEngine)
+			{
 				GEngine->AddOnScreenDebugMessage(
 					-1,
 					3.f,
@@ -155,14 +160,15 @@ void AMyProjectCharacter::CreateTemporaryMarker()
 			if (ATemporaryMarker* HitMarker = Cast<ATemporaryMarker>(OutHit.GetActor()))
 			{
 				HitMarker->IncrementCounter(50);
-			} else
+			}
+			else
 			{
 				if (MarkerManager != nullptr)
 				{
 					MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Temporary);
 				}
 			}
-		} 
+		}
 	}
 }
 
@@ -249,6 +255,6 @@ bool AMyProjectCharacter::EnableTouchscreenMovement(class UInputComponent* Playe
 		//PlayerInputComponent->BindTouch(EInputEvent::IE_Repeat, this, &AMyProjectCharacter::TouchUpdate);
 		return true;
 	}
-	
+
 	return false;
 }

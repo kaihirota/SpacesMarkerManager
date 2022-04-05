@@ -30,7 +30,7 @@ void ATemporaryMarker::Tick(const float DeltaTime)
 		Scale = 2.0f;
 	}
 	SetActorRelativeScale3D(FVector(Scale, Scale, Scale));
-	
+
 	if (Counter <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Destroying %s - %s"), *GetName(), *ToString());

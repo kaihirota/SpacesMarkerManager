@@ -37,11 +37,12 @@ public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
 	virtual void Shutdown() override;
-	
+
 	UFUNCTION(BlueprintCallable)
 	ALocationMarker* CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType);
 	ALocationMarker* CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp, const FString DeviceID);
-	ALocationMarker* CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp, const FString DeviceID, const ELocationMarkerType MarkerType);
+	ALocationMarker* CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp, const FString DeviceID,
+	                              const ELocationMarkerType MarkerType);
 	ALocationMarker* CreateMarkerFromJsonObject(const FJsonObject* JsonObject);
 
 	UFUNCTION(BlueprintCallable)
@@ -49,7 +50,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool CreateMarkerInDBByAPI(ALocationMarker* Marker);
-	
+
 	UFUNCTION(BlueprintCallable)
 	void GetMarkersFromDB();
 
@@ -61,11 +62,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DeleteMarkers(const bool DeleteFromDB = true);
-	
+
 	UFUNCTION(BlueprintCallable)
 	void DeleteSelectedMarkers(bool DeleteFromDB = true);
-	
+
 	UFUNCTION(BlueprintCallable)
 	void DeleteMarkerFromDB(ALocationMarker* Marker);
 };
-

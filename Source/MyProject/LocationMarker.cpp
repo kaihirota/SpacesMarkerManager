@@ -13,12 +13,13 @@ ALocationMarker::ALocationMarker()
 	// Create mesh components
 	StaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	RootComponent = StaticMeshComp;
-	
+
 	SphereComp = CreateDefaultSubobject<USphereComponent>(TEXT("Marker"));
 	SphereComp->InitSphereRadius(200.0f);
 	SphereComp->SetupAttachment(RootComponent);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshAsset(TEXT("StaticMesh'/Engine/BasicShapes/Sphere.Sphere'"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshAsset(
+		TEXT("StaticMesh'/Engine/BasicShapes/Sphere.Sphere'"));
 	if (SphereMeshAsset.Succeeded())
 	{
 		StaticMeshComp->SetStaticMesh(SphereMeshAsset.Object);
@@ -30,7 +31,8 @@ ALocationMarker::ALocationMarker()
 		StaticMeshComp->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	};
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveGreen(TEXT("Material'/Game/FirstPerson/EmissiveGreen.EmissiveGreen'"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveGreen(
+		TEXT("Material'/Game/FirstPerson/EmissiveGreen.EmissiveGreen'"));
 	if (EmissiveGreen.Succeeded())
 	{
 		DynamicMaterial = UMaterialInstanceDynamic::Create(EmissiveGreen.Object, nullptr);
@@ -46,7 +48,8 @@ void ALocationMarker::ToggleSelection()
 	Selected = !Selected;
 	if (Selected) SetColor(FColor::Red);
 	else SetColor(BaseColor);
-	UE_LOG(LogTemp, Log, TEXT("%s: %s - %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *GetName(), *ToString());
+	UE_LOG(LogTemp, Log, TEXT("%s: %s - %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *GetName(),
+	       *ToString());
 }
 
 void ALocationMarker::SetColor(const FLinearColor Color) const
@@ -70,17 +73,17 @@ float ALocationMarker::GetOpacity() const
 {
 	float Opacity;
 	DynamicMaterial->GetScalarParameterValue(TEXT("Opacity"), Opacity);
-	return Opacity; 
+	return Opacity;
 }
 
 FString ALocationMarker::ToString() const
 {
-	TArray< FStringFormatArg > Args;
+	TArray<FStringFormatArg> Args;
 	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
 	else Args.Add(FStringFormatArg(FString("")));
 	Args.Add(FStringFormatArg(Coordinate.ToString()));
 	Args.Add(FStringFormatArg(Timestamp.ToIso8601()));
-	return FString::Format( TEXT( "LocationMarker(DeviceID='{0}' Coordinate=({1}), Timestamp='{2}')" ), Args);
+	return FString::Format(TEXT("LocationMarker(DeviceID='{0}' Coordinate=({1}), Timestamp='{2}')"), Args);
 }
 
 FString ALocationMarker::ToJsonString() const
@@ -94,7 +97,7 @@ FString ALocationMarker::ToJsonString() const
 TSharedRef<FJsonObject> ALocationMarker::ToJsonObject() const
 {
 	const TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-	
+
 	if (!DeviceID.IsEmpty()) JsonObject->SetStringField(PartitionKeyAttributeName, this->DeviceID);
 	else JsonObject->SetStringField(PartitionKeyAttributeName, FString(""));
 	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(Timestamp.ToUnixTimestamp()));

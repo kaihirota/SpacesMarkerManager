@@ -36,7 +36,7 @@ public:
 
 	UFUNCTION()
 	void UpdateLocation(FVector Location);
-	
+
 	FVector NextLocation;
 	FVector PreviousLocation;
 	FVector Step;
@@ -50,9 +50,9 @@ public:
 	// void TimelineFinishedFunction();
 	//
 
-	
+
 	// FOnTimelineFloat InterpFunction;
 	// FTimeline Timeline;
-	
+
 	// DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FVector, FMarkerManagerDelegate, FString, FDateTime );
 };

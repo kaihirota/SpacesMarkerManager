@@ -17,10 +17,10 @@ public:
 
 	/* Initial Counter */
 	UPROPERTY(EditAnywhere)
-    float InitialCounter = 1000.0f;
+	float InitialCounter = 1000.0f;
 	const FColor BaseColor = FColor::Red;
-    
-    /* Counter */
+
+	/* Counter */
 	UPROPERTY(EditAnywhere)
 	int Counter = InitialCounter;
 

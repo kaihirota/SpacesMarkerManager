@@ -14,6 +14,3 @@ class AMyProjectGameMode : public AGameModeBase
 public:
 	AMyProjectGameMode();
 };
-
-
-

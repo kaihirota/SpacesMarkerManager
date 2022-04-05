@@ -13,7 +13,7 @@ class MYPROJECT_API ALocationMarker : public AActor
 {
 public:
 	GENERATED_BODY()
-	
+
 	// Sets default values for this actor's properties
 	ALocationMarker();
 	void ToggleSelection();
@@ -32,7 +32,7 @@ public:
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DynamicMaterial;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	FVector Coordinate;
 
@@ -58,28 +58,28 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FString ToString() const;
-	
+
 	FString ToJsonString() const;
 
 	TSharedRef<FJsonObject> ToJsonObject() const;
-	
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	
+
 	// Called before destroying the object. 
 	// This is called immediately upon deciding to destroy the object, to allow the object to begin an asynchronous cleanup process.
-    virtual void BeginDestroy() override;
+	virtual void BeginDestroy() override;
 };
 
-inline bool operator== (const ALocationMarker& Marker1, const ALocationMarker& Marker2)
+inline bool operator==(const ALocationMarker& Marker1, const ALocationMarker& Marker2)
 {
 	return (Marker1.DeviceID == Marker2.DeviceID &&
-			Marker1.Coordinate == Marker1.Coordinate &&
-			Marker1.Timestamp == Marker2.Timestamp);
+		Marker1.Coordinate == Marker1.Coordinate &&
+		Marker1.Timestamp == Marker2.Timestamp);
 }
 
 inline uint32 GetTypeHash(const ALocationMarker& Thing)
