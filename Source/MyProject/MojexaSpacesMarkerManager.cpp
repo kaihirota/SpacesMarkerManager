@@ -13,6 +13,7 @@
 #include "aws/dynamodb/DynamoDBClient.h"
 #include "aws/dynamodb/model/PutItemRequest.h"
 #include "aws/dynamodb/model/QueryRequest.h"
+#include "aws/dynamodb/model/ScanRequest.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/DefaultValueHelper.h"
@@ -78,9 +79,9 @@ FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDat
 			{
 				// get location data
 				float lon, lat, elev;
-				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionXAttributeNameAws).GetS().c_str()), lon);
-				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionYAttributeNameAws).GetS().c_str()), lat);
-				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionYAttributeNameAws).GetS().c_str()), elev);
+				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionXAttributeNameAws).GetN().c_str()), lon);
+				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionYAttributeNameAws).GetN().c_str()), lat);
+				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionZAttributeNameAws).GetN().c_str()), elev);
 				return FVector(lon, lat, elev);
 			}
 		}
@@ -219,21 +220,90 @@ bool UMojexaSpacesMarkerManager::CreateMarkerInDBByAPI(ALocationMarker* Marker)
 
 void UMojexaSpacesMarkerManager::GetMarkersFromDB()
 {
-	FHttpModule* Http = &FHttpModule::Get();
-	if (Http != nullptr)
+	if (UseDynamoDBLocal)
 	{
-		const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = Http->CreateRequest();
-		Request->OnProcessRequestComplete().BindUObject(this, &ThisClass::OnGetMarkersResponse);
-		Request->SetURL(MarkerAPIEndpoint);
-		Request->SetVerb("GET");
-		Request->SetHeader("User-Agent", "X-UnrealEngine-Agent");
-		Request->SetHeader("Content-Type", "application/json");
-		Request->ProcessRequest();
-		UE_LOG(LogTemp, Log, TEXT("Created GET Markers request successfully."));
-	}
-	else
+		Aws::DynamoDB::Model::ScanRequest Request;
+		Request.SetTableName(DynamoDBTableName);
+		Aws::DynamoDB::Model::ScanOutcome Outcome = ClientRef->Scan(Request);
+		if (Outcome.IsSuccess())
+		{
+			Aws::DynamoDB::Model::ScanResult Result = Outcome.GetResult();
+			UE_LOG(LogTemp, Warning, TEXT("DynamoDB Scan Request success: %d items"), Result.GetCount());
+			TMap<FString, FJsonObject*> DynamicMarkers;
+			
+			for (auto Pairs : Result.GetItems())
+			{
+				// device id
+				FString DeviceID = AwsStringToFString(Pairs.at(PartitionKeyAttributeNameAws).GetS());
+				
+				// type
+				ELocationMarkerType MarkerType;
+				if (Pairs.find(MarkerTypeAttributeNameAws) == Pairs.end())
+				{
+					MarkerType = ELocationMarkerType::Static;
+				} else
+				{
+					const FString MarkerTypeStr = FString(Pairs.at(MarkerTypeAttributeNameAws).GetS().c_str());
+					if (MarkerTypeStr.Equals(FString("dynamic"))) MarkerType = ELocationMarkerType::Dynamic;
+					else MarkerType = ELocationMarkerType::Static;
+				}
+
+				float lon, lat, elev;
+				FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionXAttributeNameAws).GetN().c_str()), lon);
+				FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionYAttributeNameAws).GetN().c_str()), lat);
+				FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionZAttributeNameAws).GetN().c_str()), elev);
+
+				// convert to json object
+				FJsonObject* JsonObject = new FJsonObject;
+				JsonObject->SetStringField(PartitionKeyAttributeName, DeviceID);
+				JsonObject->SetStringField(SortKeyAttributeName, FString(Pairs.at(SortKeyAttributeNameAws).GetS().c_str()));
+				JsonObject->SetNumberField(PositionXAttributeName, lon);
+				JsonObject->SetNumberField(PositionYAttributeName, lat);
+				JsonObject->SetNumberField(PositionZAttributeName, elev);
+				
+				if (MarkerType == ELocationMarkerType::Dynamic)
+				{
+					DynamicMarkers.Add(DeviceID, JsonObject);
+					JsonObject->SetStringField(MarkerTypeAttributeName, "dynamic");
+				} else
+				{
+					ALocationMarker* Marker = CreateMarkerFromJsonObject(JsonObject);
+				}
+			} 
+			for (const auto DMarker : DynamicMarkers)
+			{
+				// TODO create only if AllMarkers doesn't contain its device ID
+				// if (!AllMarkers.Contains(GetTypeHash(DMarker.Value)))
+				
+				ALocationMarker* CreatedMarker = CreateMarkerFromJsonObject(DMarker.Value);
+				if (CreatedMarker != nullptr)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *CreatedMarker->GetName(),
+				   *CreatedMarker->ToString());
+				}
+			}
+		} else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("DynamoDB Scan Request failed: %s"), *FString(Outcome.GetError().GetMessage().c_str()));
+		}
+	} else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Failed to create GET request"));
+		FHttpModule* Http = &FHttpModule::Get();
+		if (Http != nullptr)
+		{
+			const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = Http->CreateRequest();
+			Request->OnProcessRequestComplete().BindUObject(this, &ThisClass::OnGetMarkersResponse);
+			Request->SetURL(MarkerAPIEndpoint);
+			Request->SetVerb("GET");
+			Request->SetHeader("User-Agent", "X-UnrealEngine-Agent");
+			Request->SetHeader("Content-Type", "application/json");
+			Request->ProcessRequest();
+			UE_LOG(LogTemp, Log, TEXT("Created GET Markers request successfully."));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Failed to create GET request"));
+		}
 	}
 }
 
@@ -257,8 +327,7 @@ void UMojexaSpacesMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, F
 				// how to determine if new marker should be spawned, or not?
 				// no marker with same device id, time, and coordinates can co exist
 				FJsonObject* JsonObject = MarkerValue->AsObject().Get();
-				if (JsonObject->HasField(MarkerTypeAttributeName) && JsonObject->HasField(PartitionKeyAttributeName) &&
-					JsonObject->HasField(SortKeyAttributeName))
+				if (JsonObject->HasField(MarkerTypeAttributeName))
 				{
 					FString MarkerType = JsonObject->GetStringField(MarkerTypeAttributeName); // == FString("dynamic")
 					FString DeviceID = JsonObject->GetStringField(PartitionKeyAttributeName);
@@ -279,8 +348,11 @@ void UMojexaSpacesMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, F
 			for (const auto DMarker : DynamicMarkers)
 			{
 				const ALocationMarker* Marker = CreateMarkerFromJsonObject(DMarker.Value);
-				if (Marker != nullptr) UE_LOG(LogTemp, Log, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(),
-				                              *Marker->ToString());
+				if (Marker != nullptr)
+				{
+					UE_LOG(LogTemp, Log, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(),
+						  *Marker->ToString());
+				}
 			}
 		}
 	}
