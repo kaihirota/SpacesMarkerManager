@@ -5,14 +5,10 @@
 #include "aws/core/utils/memory/stl/AWSString.h"
 
 
-static const FString MarkerAPIEndpoint = "https://0flacbdme3.execute-api.ap-southeast-2.amazonaws.com/dev/";
-
-static const char* MojexaSpacesAwsRegion = Aws::Region::AP_SOUTHEAST_2;
 static const Aws::String AWSAccessKeyId = "AKIA6BPFQACFZTW2QD4K";
 static const Aws::String AWSSecretKey = "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";
-static const Aws::String DynamoDBStreamsARN =
-	"arn:aws:dynamodb:ap-southeast-2:965238325387:table/mojexa-markers/stream/2022-03-21T07:34:06.673";
 static const Aws::String DynamoDBTableName = "mojexa-markers";
+static const char* MojexaSpacesAwsRegion = Aws::Region::AP_SOUTHEAST_2;
 
 inline Aws::String FStringToAwsString(const FString& String)
 {

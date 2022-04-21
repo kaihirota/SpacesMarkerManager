@@ -72,8 +72,8 @@ void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	EnableTouchscreenMovement(PlayerInputComponent);
 
 	PlayerInputComponent->BindAction("GetMarkers", IE_Pressed, this, &AMyProjectCharacter::GetMarkers);
-	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this,
-	                                 &AMyProjectCharacter::RemoveSelectedMarkers);
+	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this, &AMyProjectCharacter::RemoveSelectedMarkers);
+	PlayerInputComponent->BindAction("ListenToStreams", IE_Pressed, this, &AMyProjectCharacter::ListenToStreams);
 
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
@@ -186,6 +186,14 @@ void AMyProjectCharacter::RemoveSelectedMarkers()
 	if (MarkerManager != nullptr)
 	{
 		MarkerManager->DeleteSelectedMarkers();
+	}
+}
+
+void AMyProjectCharacter::ListenToStreams()
+{
+	if (MarkerManager != nullptr)
+	{
+		MarkerManager->IterateStreams();
 	}
 }
 

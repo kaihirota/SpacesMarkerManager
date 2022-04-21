@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "aws/dynamodb/DynamoDBClient.h"
+#include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
 #include "Interfaces/IHttpRequest.h"
 #include "MojexaSpacesMarkerManager.generated.h"
 
@@ -25,7 +26,8 @@ class MYPROJECT_API UMojexaSpacesMarkerManager : public UGameInstance
 public:
 	TMap<FString, ALocationMarker*> AllMarkers;
 
-	Aws::DynamoDB::DynamoDBClient* ClientRef;
+	Aws::DynamoDB::DynamoDBClient* DynamoClient;
+	Aws::DynamoDBStreams::DynamoDBStreamsClient* StreamsClient;
 private:
 	GENERATED_BODY()
 
@@ -35,6 +37,7 @@ protected:
 public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
+	void IterateStreams();
 	virtual void Shutdown() override;
 
 	UFUNCTION(BlueprintCallable)

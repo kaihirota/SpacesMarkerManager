@@ -64,6 +64,7 @@ protected:
 	void CreateTemporaryMarker();
 	void GetMarkers();
 	void RemoveSelectedMarkers();
+	void ListenToStreams();
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);
