@@ -120,31 +120,39 @@ void UMojexaSpacesMarkerManager::IterateStreams()
 												*FString(Record.GetEventID().c_str()));
 											
 											Aws::Utils::Json::JsonValue JsonValue = Record.Jsonize(); 
-											Aws::Utils::Json::JsonView JsonView = JsonValue.View();
+											Aws::Utils::Json::JsonView JsonView = JsonValue.View().GetObject("dynamodb").GetObject("NewImage");
 											
-											for (auto Pair : JsonView.GetAllObjects())
+											if (JsonView.ValueExists("device_id") && JsonView.ValueExists("created_timestamp"))
 											{
-												UE_LOG(LogTemp, Warning, TEXT("%s: %s"), *FString(Pair.first.c_str()), *FString(Pair.second.AsString().c_str()));
+												Aws::String MarkerType = "static";
+												if (JsonView.KeyExists("marker_type") && JsonView.ValueExists("marker_type"))
+												{
+													MarkerType = JsonView.GetObject("marker_type").GetString("S"); 
+												}
+												
+												Aws::String DeviceID = JsonView.GetObject("device_id").GetString("S");
+												Aws::String Timestamp = JsonView.GetObject("created_timestamp").GetString("S");
+
+												Aws::String lon = JsonView.GetObject("longitude").GetString("N");
+												Aws::String lat = JsonView.GetObject("latitude").GetString("N");
+												Aws::String elev = JsonView.GetObject("elevation").GetString("N");
+
+												double Lon = FCString::Atod(*FString(lon.c_str()));
+												double Lat = FCString::Atod(*FString(lat.c_str()));
+												double Elev = FCString::Atod(*FString(elev.c_str()));
+												
+												UE_LOG(LogTemp, Warning,
+													TEXT("device_id: %s, created_timestamp: %s, marker_type: %s, lon: %s, lat: %s, elev: %s"),
+													*FString(DeviceID.c_str()),
+													*FString(Timestamp.c_str()),
+													*FString(MarkerType.c_str()),
+													*FString::SanitizeFloat(Lon),
+													*FString::SanitizeFloat(Lat),
+													*FString::SanitizeFloat(Elev));
+											} else
+											{
+												UE_LOG(LogTemp, Warning, TEXT("GetRecords error - Record does not have a device_id or created_timestamp"));
 											}
-											// if (JsonView.ValueExists("device_id") && JsonView.ValueExists("created_timestamp"))
-											// {
-											// 	Aws::String DeviceID = JsonView.GetString("device_id");
-											// 	Aws::String Timestamp = JsonView.GetString("created_timestamp");
-											// 	Aws::String MarkerType = JsonView.GetString("marker_type");
-											// 	double lon = JsonView.GetDouble("longitude");
-											// 	double lat = JsonView.GetDouble("latitude");
-											// 	double elev = JsonView.GetDouble("elevation");
-											// 	
-											// 	UE_LOG(LogTemp, Warning,
-											// 		TEXT("device_id: %s, created_timestamp: %s, marker_type: %s, lon: %f, lat: %f, elev: %f"),
-											// 		*FString(DeviceID.c_str()),
-											// 		*FString(Timestamp.c_str()),
-											// 		*FString(MarkerType.c_str()),
-											// 		lon, lat, elev);
-											// } else
-											// {
-											// 	UE_LOG(LogTemp, Warning, TEXT("GetRecords error - Record does not have a device_id or created_timestamp"));
-											// }
 										}
 									}
 									processedRecordCount += Records.size();
@@ -332,28 +340,6 @@ bool UMojexaSpacesMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 	return false;
 }
 
-
-bool UMojexaSpacesMarkerManager::CreateMarkerInDBByAPI(ALocationMarker* Marker)
-{
-	FHttpModule* Http = &FHttpModule::Get();
-	if (Http != nullptr)
-	{
-		const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = Http->CreateRequest();
-		// Request->OnProcessRequestComplete().BindUObject(this, &ThisClass::OnGetMarkersResponse);
-		Request->SetURL(MarkerAPIEndpoint);
-		Request->SetVerb("POST");
-		Request->SetHeader("User-Agent", "X-UnrealEngine-Agent");
-		Request->SetHeader("Content-Type", TEXT("application/json"));
-		Request->SetHeader(TEXT("Accepts"), TEXT("application/json"));
-		Request->SetContentAsString(Marker->ToJsonString());
-		Request->ProcessRequest();
-		UE_LOG(LogTemp, Warning, TEXT("Created POST Markers request successfully."));
-		return true;
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Failed to create POST request"));
-	return false;
-}
-
 void UMojexaSpacesMarkerManager::GetMarkersFromDB()
 {
 	Aws::DynamoDB::Model::ScanRequest Request;
@@ -530,7 +516,7 @@ void UMojexaSpacesMarkerManager::DeleteMarkerFromDB(ALocationMarker* Marker)
 	{
 		const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = Http->CreateRequest();
 		Request->OnProcessRequestComplete().BindUObject(this, &ThisClass::OnDeleteMarkersResponse);
-		Request->SetURL(MarkerAPIEndpoint);
+		// Request->SetURL(MarkerAPIEndpoint);
 		Request->SetVerb("DELETE");
 		Request->SetHeader("User-Agent", "X-UnrealEngine-Agent");
 		Request->SetHeader("Content-Type", "application/json");

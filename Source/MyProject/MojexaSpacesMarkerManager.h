@@ -51,9 +51,6 @@ public:
 	bool CreateMarkerInDB(const ALocationMarker* Marker);
 
 	UFUNCTION(BlueprintCallable)
-	bool CreateMarkerInDBByAPI(ALocationMarker* Marker);
-
-	UFUNCTION(BlueprintCallable)
 	void GetMarkersFromDB();
 
 	UFUNCTION(BlueprintCallable)
