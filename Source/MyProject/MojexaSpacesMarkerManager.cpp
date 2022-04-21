@@ -100,10 +100,14 @@ void UMojexaSpacesMarkerManager::IterateStreams()
 							while (ShardIterator != "" && processedRecordCount < maxItemCount)
 							{
 								UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *FString(ShardIterator.c_str()));
+								Aws::DynamoDBStreams::Model::GetRecordsRequest GetRecordsRequest;
 								Aws::DynamoDBStreams::Model::GetRecordsResult GetRecordsResult;
 								Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome;
-
-								GetRecordsOutcome = StreamsClient->GetRecords(Aws::DynamoDBStreams::Model::GetRecordsRequest().WithShardIterator(ShardIterator));
+								GetRecordsRequest = Aws::DynamoDBStreams::Model::GetRecordsRequest()
+									.WithShardIterator(ShardIterator)
+									.WithLimit(1);
+								
+								GetRecordsOutcome = StreamsClient->GetRecords(GetRecordsRequest);
 								if (GetRecordsOutcome.IsSuccess())
 								{
 									GetRecordsResult = GetRecordsOutcome.GetResult();
