@@ -94,20 +94,14 @@ void UMojexaSpacesMarkerManager::IterateStreams()
 						if (ShardIteratorOutcome.IsSuccess())
 						{
 							Aws::String ShardIterator = ShardIteratorOutcome.GetResult().GetShardIterator();
-							// Shard iterator is not null until the Shard is sealed (marked as READ_ONLY).
-							// To prevent running the loop until the Shard is sealed, which will be on average
-							// 4 hours, we process only the items that were written into DynamoDB and then exit.
-							// int processedRecordCount = 0;
-							// int maxItemCount = 100;
+							int processedRecordCount = 0;
 							int shardPageCount = 0;
-							// while (ShardIterator != "" && processedRecordCount < maxItemCount)
 							while (ShardIterator != "")
 							{
 								UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *FString(ShardIterator.c_str()));
 								
 								Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome;
 								GetRecordsOutcome = StreamsClient->GetRecords(Aws::DynamoDBStreams::Model::GetRecordsRequest()
-									// .WithLimit(maxItemCount)
 									.WithShardIterator(ShardIterator));
 								if (GetRecordsOutcome.IsSuccess())
 								{
@@ -162,7 +156,7 @@ void UMojexaSpacesMarkerManager::IterateStreams()
 											}
 										}
 									}
-									// processedRecordCount += Records.size();
+									processedRecordCount += Records.size();
 									ShardIterator = GetRecordsResult.GetNextShardIterator();
 									shardPageCount++;
 								} else
