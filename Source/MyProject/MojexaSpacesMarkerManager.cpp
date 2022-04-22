@@ -10,6 +10,7 @@
 #include "aws/core/Aws.h"
 #include "aws/core/auth/AWSCredentials.h"
 #include "aws/core/client/ClientConfiguration.h"
+#include "aws/core/http/standard/StandardHttpRequest.h"
 #include "aws/dynamodb/DynamoDBClient.h"
 #include "aws/dynamodb/model/PutItemRequest.h"
 #include "aws/dynamodb/model/QueryRequest.h"
@@ -48,41 +49,40 @@ void UMojexaSpacesMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initialized"));
 }
 
+/**
+ * @ Do a "replay" of the inserts in the last 24 hours
+ */
 void UMojexaSpacesMarkerManager::IterateStreams()
 {
-	Aws::DynamoDBStreams::Model::ListStreamsRequest ListStreamsRequest;
+	// TODO later make it so that the user specifies the streamARN as input or constant
 	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome;
-	Aws::DynamoDBStreams::Model::ListStreamsResult ListStreamsResult;
-
-	ListStreamsRequest.SetTableName(DynamoDBTableName);
-	ListStreamsOutcome = StreamsClient->ListStreams(ListStreamsRequest);
+	ListStreamsOutcome = StreamsClient->ListStreams(Aws::DynamoDBStreams::Model::ListStreamsRequest().WithTableName(DynamoDBTableName));
 	if (ListStreamsOutcome.IsSuccess())
 	{
+		Aws::DynamoDBStreams::Model::ListStreamsResult ListStreamsResult;
 		ListStreamsResult = ListStreamsOutcome.GetResult();
 		Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = ListStreamsResult.GetStreams();
 		if (Streams.size() > 0)
 		{
 			Aws::DynamoDBStreams::Model::Stream Stream = Streams[0];
-			Aws::DynamoDBStreams::Model::DescribeStreamRequest DescribeStreamRequest;
 			Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome;
-			Aws::DynamoDBStreams::Model::DescribeStreamResult DescribeStreamResult;
-			DescribeStreamRequest.SetStreamArn(Stream.GetStreamArn());
-			DescribeStreamOutcome = StreamsClient->DescribeStream(DescribeStreamRequest);
+			DescribeStreamOutcome = StreamsClient->DescribeStream(
+			Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(Stream.GetStreamArn()));
 			if (DescribeStreamOutcome.IsSuccess())
 			{
+				Aws::DynamoDBStreams::Model::DescribeStreamResult DescribeStreamResult;
 				DescribeStreamResult = DescribeStreamOutcome.GetResultWithOwnership();
 				Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = DescribeStreamResult.GetStreamDescription().GetShards();
 				UE_LOG(LogTemp, Warning, TEXT("Found %d shards"), Shards.size());
 
 				for (auto Shard : Shards)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("shard %s"), *FString(Shard.GetShardId().c_str()));
+					UE_LOG(LogTemp, Warning, TEXT("Shard %s"), *FString(Shard.GetShardId().c_str()));
 					if(Shard.ShardIdHasBeenSet())
 					{
 						Aws::DynamoDBStreams::Model::GetShardIteratorRequest ShardIteratorRequest;
 						Aws::DynamoDBStreams::Model::GetShardIteratorOutcome ShardIteratorOutcome;
 						Aws::DynamoDBStreams::Model::GetShardIteratorResult ShardIteratorResult;
-						Aws::String ShardIterator;
 
 						// get iterator for the given shard id
 						ShardIteratorRequest = Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
@@ -93,35 +93,37 @@ void UMojexaSpacesMarkerManager::IterateStreams()
 						ShardIteratorOutcome = StreamsClient->GetShardIterator(ShardIteratorRequest);
 						if (ShardIteratorOutcome.IsSuccess())
 						{
-							ShardIterator = ShardIteratorOutcome.GetResult().GetShardIterator();
-							int processedRecordCount = 0, maxItemCount = 10;
-
-							// get record from the shard using the iterator
-							while (ShardIterator != "" && processedRecordCount < maxItemCount)
+							Aws::String ShardIterator = ShardIteratorOutcome.GetResult().GetShardIterator();
+							// Shard iterator is not null until the Shard is sealed (marked as READ_ONLY).
+							// To prevent running the loop until the Shard is sealed, which will be on average
+							// 4 hours, we process only the items that were written into DynamoDB and then exit.
+							// int processedRecordCount = 0;
+							// int maxItemCount = 100;
+							int shardPageCount = 0;
+							// while (ShardIterator != "" && processedRecordCount < maxItemCount)
+							while (ShardIterator != "")
 							{
 								UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *FString(ShardIterator.c_str()));
-								Aws::DynamoDBStreams::Model::GetRecordsRequest GetRecordsRequest;
-								Aws::DynamoDBStreams::Model::GetRecordsResult GetRecordsResult;
-								Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome;
-								GetRecordsRequest = Aws::DynamoDBStreams::Model::GetRecordsRequest()
-									.WithShardIterator(ShardIterator)
-									.WithLimit(1);
 								
-								GetRecordsOutcome = StreamsClient->GetRecords(GetRecordsRequest);
+								Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome;
+								GetRecordsOutcome = StreamsClient->GetRecords(Aws::DynamoDBStreams::Model::GetRecordsRequest()
+									// .WithLimit(maxItemCount)
+									.WithShardIterator(ShardIterator));
 								if (GetRecordsOutcome.IsSuccess())
 								{
-									GetRecordsResult = GetRecordsOutcome.GetResult();
+									Aws::DynamoDBStreams::Model::GetRecordsResult GetRecordsResult = GetRecordsOutcome.GetResult();
 									Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = GetRecordsResult.GetRecords();
 									UE_LOG(LogTemp, Warning, TEXT("Found %d records"), Records.size());
+
 									if (Records.size() == 0) break;
 
 									for (auto Record : Records)
 									{
 										if (Record.GetEventName() == Aws::DynamoDBStreams::Model::OperationType::INSERT)
 										{
-											UE_LOG(LogTemp, Warning, TEXT("INSERT Event detected in region %s: %s"),
-												*FString(Record.GetAwsRegion().c_str()),
-												*FString(Record.GetEventID().c_str()));
+											UE_LOG(LogTemp, Warning, TEXT("INSERT Event (EventID %s) detected in region %s"),
+												*FString(Record.GetEventID().c_str()),
+												*FString(Record.GetAwsRegion().c_str()));
 											
 											Aws::Utils::Json::JsonValue JsonValue = Record.Jsonize(); 
 											Aws::Utils::Json::JsonView JsonView = JsonValue.View().GetObject("dynamodb").GetObject("NewImage");
@@ -156,30 +158,29 @@ void UMojexaSpacesMarkerManager::IterateStreams()
 											} else
 											{
 												UE_LOG(LogTemp, Warning, TEXT("GetRecords error - Record does not have a device_id or created_timestamp"));
+												break;
 											}
 										}
 									}
-									processedRecordCount += Records.size();
+									// processedRecordCount += Records.size();
 									ShardIterator = GetRecordsResult.GetNextShardIterator();
-								}
-								else
+									shardPageCount++;
+								} else
 								{
-									UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"),
-										   *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
+									UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"), *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
 									break;
 								}
 							}
+							UE_LOG(LogTemp, Warning, TEXT("Processing complete. Processed %d events from %d pages"), processedRecordCount, shardPageCount);
 						}
-						// GetDynamoDBStreamsShardIteratorAsync(ShardIteratorResult, ShardIteratorRequestSuccess, AErrorType, AErrorMsg, ALatentInfo);
 					}
-
 				}
 			}
 			else
 			{
 				UE_LOG(LogTemp, Warning, TEXT("DescribeStreams error: %s"),
 				       *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
-			}
+			}	
 		} else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("ListStreams error: no streams were found"));
