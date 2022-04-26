@@ -6,6 +6,7 @@
 #include "aws/dynamodb/DynamoDBClient.h"
 #include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
 #include "Interfaces/IHttpRequest.h"
+#include "MqttUtilities/Private/Linux/MqttClientImpl.h"
 #include "MojexaSpacesMarkerManager.generated.h"
 
 UENUM()
@@ -28,6 +29,7 @@ public:
 
 	Aws::DynamoDB::DynamoDBClient* DynamoClient;
 	Aws::DynamoDBStreams::DynamoDBStreamsClient* StreamsClient;
+
 private:
 	GENERATED_BODY()
 
@@ -37,7 +39,14 @@ protected:
 public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
+	static void handle_signal(int s);
+	static void connect_callback(mosquitto* mosq, void* obj, int result);
+	static void message_callback(mosquitto* mosq, void* obj, const mosquitto_message* message);
+	void BeginSubscribe();
 	void IterateStreams();
+	void Subscribe();
+	static int ResponseCode;
+	static int RunStatus;
 	virtual void Shutdown() override;
 
 	UFUNCTION(BlueprintCallable)

@@ -3,6 +3,8 @@
 
 #include "MojexaSpacesMarkerManager.h"
 
+#include <mosquitto.h>
+
 #include "DynamicMarker.h"
 #include "HttpModule.h"
 #include "Settings.h"
@@ -47,6 +49,60 @@ void UMojexaSpacesMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("DynamoDB Streams ready"));
 
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initialized"));
+}
+
+auto UMojexaSpacesMarkerManager::connect_callback(struct mosquitto* mosq, void* obj, int result) -> void
+{
+	UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Connection established: %d"), result);
+	ResponseCode = result;
+}
+
+auto UMojexaSpacesMarkerManager::message_callback(struct mosquitto* mosq, void* obj,
+                                                  const struct mosquitto_message* message) -> void
+{
+	bool match = 0;
+	FString Payload = FString((char*) message->payload);
+	FString Topic = FString(message->topic);
+	UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Message Received: Payload: %s, Topic: %s"), *Payload, *Topic);
+	
+	mosquitto_topic_matches_sub("marker.dynamic.*", message->topic, &match);
+	if (match) {
+		UE_LOG(LogTemp, Warning, TEXT("Topic: %s Data: %s"), *Topic, *Payload);
+	}
+
+}
+
+void UMojexaSpacesMarkerManager::BeginSubscribe()
+{
+	mosquitto_lib_init();
+	mosquitto* MqttClient = mosquitto_new("UE", false, 0);
+	
+	if (MqttClient)
+	{
+		mosquitto_connect_callback_set(MqttClient, &UMojexaSpacesMarkerManager::connect_callback);
+		mosquitto_message_callback_set(MqttClient, &UMojexaSpacesMarkerManager::message_callback);
+		
+		ResponseCode = mosquitto_connect(
+			MqttClient,
+			"mojexa:Xr6XsWNvRcW*@b-da24ae22-032a-4574-a881-d90c3894b2d2.mq.ap-southeast-2.amazonaws.com",
+			5671,
+			60
+		);
+		
+		// mosquitto_subscribe(MqttClient, NULL, "marker.dynamic.*", 0);
+		mosquitto_subscribe(MqttClient, NULL, "*", 0);
+		
+		while(RunStatus){
+			ResponseCode = mosquitto_loop(MqttClient, -1, 1);
+			if(RunStatus && ResponseCode){
+				UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Connection Error"));
+				sleep(10);
+				mosquitto_reconnect(MqttClient);
+			}
+		}
+		mosquitto_destroy(MqttClient);
+	}
+	mosquitto_lib_cleanup();
 }
 
 /**
