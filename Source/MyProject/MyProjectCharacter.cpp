@@ -13,6 +13,8 @@
 #include "MotionControllerComponent.h"
 #include "TemporaryMarker.h"
 
+#include <mosquitto.h>
+
 // DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
 //////////////////////////////////////////////////////////////////////////
@@ -193,7 +195,58 @@ void AMyProjectCharacter::ListenToStreams()
 {
 	if (MarkerManager != nullptr)
 	{
-		MarkerManager->DynamoDBStreamsReplay(FDateTime::Now() - FTimespan::FromHours(24.0));
+		// MarkerManager->DynamoDBStreamsReplay(FDateTime::Now() - FTimespan::FromHours(24.0));
+		mosquitto* MqttClient = mosquitto_new(nullptr, true, nullptr);
+
+		if (MqttClient)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Client Created."));
+			mosquitto_connect_callback_set(
+				MqttClient, [](struct mosquitto* mosq, void* obj, int rc) mutable -> void
+			{
+				UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Connection established: %d"), rc);
+			});
+			mosquitto_message_callback_set(
+				MqttClient, [](struct mosquitto* mosq, void* obj, const struct mosquitto_message* message)
+				{
+					bool match = 0;
+					FString Payload = FString((char*)message->payload);
+					FString Topic = FString(message->topic);
+					UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Message Received: Payload: %s, Topic: %s"), *Payload, *Topic);
+
+					mosquitto_topic_matches_sub("marker.dynamic.*", message->topic, &match);
+					if (match)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("Topic: %s Data: %s"), *Topic, *Payload);
+					}
+				});
+			UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Client connecting to broker..."));
+			mosquitto_connect(
+				MqttClient,
+				"mojexa:Xr6XsWNvRcW*@b-da24ae22-032a-4574-a881-d90c3894b2d2.mq.ap-southeast-2.amazonaws.com",
+				5671,
+				60
+			);
+			UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Client connected to broker"));
+
+			// mosquitto_subscribe(MqttClient, NULL, "marker.dynamic.*", 0);
+			mosquitto_subscribe(MqttClient, NULL, "*", 0);
+			int counter = 0, limit = 10;
+			do
+			{
+				int rc = mosquitto_loop(MqttClient, -1, 1);
+				UE_LOG(LogTemp, Warning, TEXT("Result Code: %d"), rc);
+				counter++;
+				// if(RunStatus){
+				// 	UE_LOG(LogTemp, Warning, TEXT("RabbitMQ Connection Error"));
+				// 	sleep(10);
+				// 	mosquitto_reconnect(MqttClient);
+				// }
+			} while (counter < limit);
+
+			mosquitto_destroy(MqttClient);
+			mosquitto_lib_cleanup();
+		}
 	}
 }
 

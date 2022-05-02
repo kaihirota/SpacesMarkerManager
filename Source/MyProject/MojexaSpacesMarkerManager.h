@@ -6,7 +6,6 @@
 #include "aws/dynamodb/DynamoDBClient.h"
 #include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
 #include "Interfaces/IHttpRequest.h"
-#include "MqttUtilities/Private/Linux/MqttClientImpl.h"
 #include "MojexaSpacesMarkerManager.generated.h"
 
 UENUM()
@@ -44,15 +43,6 @@ public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
 	virtual void Shutdown() override;
-	
-	void handle_signal(int s);
-	static void connect_callback(mosquitto* mosq, void* obj, int result);
-	static void message_callback(mosquitto* mosq, void* obj, const mosquitto_message* message);
-	static void BeginSubscribe();
-	void IterateStreams();
-	void Subscribe();
-	static int ResultCode;
-	// static int RunStatus;
 	
 	void DynamoDBStreamsReplay(FDateTime TReplayStartFrom);
 	void SingleStreamReplay(const Aws::DynamoDBStreams::Model::Stream& Stream, FDateTime TReplayStartFrom);
