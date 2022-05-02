@@ -28,6 +28,10 @@ public:
 
 	Aws::DynamoDB::DynamoDBClient* DynamoClient;
 	Aws::DynamoDBStreams::DynamoDBStreamsClient* StreamsClient;
+	Aws::String LastEvaluatedShardId;
+	Aws::String LastEvaluatedSequenceNumber;
+	int NumberOfEmptyShards = 0;
+	int NumberOfEmptyShardsLimit = 5;
 private:
 	GENERATED_BODY()
 
@@ -37,7 +41,10 @@ protected:
 public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
-	void IterateStreams();
+	void DynamoDBStreamsReplay(FDateTime TReplayStartFrom);
+	void SingleStreamReplay(const Aws::DynamoDBStreams::Model::Stream& Stream, FDateTime TReplayStartFrom);
+	void IterateShard(const Aws::DynamoDBStreams::Model::GetShardIteratorResult& GetShardIteratorResult, FDateTime TReplayStartFrom);
+	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records, FDateTime TReplayStartFrom);
 	virtual void Shutdown() override;
 
 	UFUNCTION(BlueprintCallable)

@@ -193,7 +193,7 @@ void AMyProjectCharacter::ListenToStreams()
 {
 	if (MarkerManager != nullptr)
 	{
-		MarkerManager->IterateStreams();
+		MarkerManager->DynamoDBStreamsReplay(FDateTime::Now() - FTimespan::FromHours(24.0));
 	}
 }
 
