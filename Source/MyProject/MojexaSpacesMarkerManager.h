@@ -39,14 +39,14 @@ protected:
 public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
-	static void handle_signal(int s);
+	void handle_signal(int s);
 	static void connect_callback(mosquitto* mosq, void* obj, int result);
 	static void message_callback(mosquitto* mosq, void* obj, const mosquitto_message* message);
-	void BeginSubscribe();
+	static void BeginSubscribe();
 	void IterateStreams();
 	void Subscribe();
-	static int ResponseCode;
-	static int RunStatus;
+	static int ResultCode;
+	// static int RunStatus;
 	virtual void Shutdown() override;
 
 	UFUNCTION(BlueprintCallable)
