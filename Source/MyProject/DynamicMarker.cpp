@@ -22,55 +22,35 @@ void ADynamicMarker::BeginPlay()
 		SetReplicates(true);
 		SetReplicateMovement(true);
 	}
-	PreviousLocation = GetActorLocation();
 	NextLocation = GetActorLocation();
-
-	GetWorld()->GetTimerManager()
-	          .SetTimer(TimerHandle, this, &ADynamicMarker::RepeatingFunction, PollIntervalInSeconds, true, InitialDelay);
 }
 
-void ADynamicMarker::UpdateLocation(const FVector Location)
+void ADynamicMarker::EnqueueLocation(const FVector Location)
 {
-	PreviousLocation = GetActorLocation();
-	this->NextLocation = Location;
+	CoordinateQueue.Enqueue(Location);
 }
 
 // Called every frame
-void ADynamicMarker::Tick(float DeltaTime)
+void ADynamicMarker::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (PreviousLocation != NextLocation)
+	if (GetActorLocation() == NextLocation)
 	{
-		Step = FMath::VInterpConstantTo(GetActorLocation(), this->NextLocation, DeltaTime, InterpolationsPerSecond);
+		if (CoordinateQueue.Dequeue(NextLocation))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Dynamic Marker %s at %s, next stop %s"), *DeviceID, *GetActorLocation().ToString(), *NextLocation.ToString());
+		} else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Dynamic Marker %s reached final destination %s"), *DeviceID, *GetActorLocation().ToString());
+		}
+	} else
+	{
+		Step = FMath::VInterpConstantTo(
+			GetActorLocation(),
+			NextLocation,
+			DeltaTime,
+			InterpolationsPerSecond);
 		SetActorLocation(Step, true, nullptr, ETeleportType::None);
-	}
-}
-
-void ADynamicMarker::RepeatingFunction()
-{
-	if (ManagerDelegate.IsBound())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Requesting new location for : %s at %s"), *this->ToString(),
-		       *GetActorLocation().ToString());
-		const FVector NewLocation = ManagerDelegate.Execute(this->DeviceID, this->Timestamp);
-		if (NewLocation != FVector::ZeroVector)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Marker: %s Current loc: %s Next Location: %s"), *this->ToString(),
-			       *GetActorLocation().ToString(), *NextLocation.ToString());
-			if (NewLocation != GetActorLocation())
-			{
-				// SetActorLocation(NextLocation, true, nullptr, ETeleportType::None);
-				UpdateLocation(NewLocation);
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Location not updated for marker %s: Current loc: %s"), *this->ToString(),
-			       *GetActorLocation().ToString());
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("No reference to MarkerManager found"));
+		UE_LOG(LogTemp, Warning, TEXT("Dynamic Marker %s %s %s"), *DeviceID, *Step.ToString(), *NextLocation.ToString());
 	}
 }

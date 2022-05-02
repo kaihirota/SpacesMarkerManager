@@ -29,7 +29,11 @@ public:
 
 	Aws::DynamoDB::DynamoDBClient* DynamoClient;
 	Aws::DynamoDBStreams::DynamoDBStreamsClient* StreamsClient;
-
+	Aws::String LastEvaluatedShardId;
+	Aws::String LastEvaluatedSequenceNumber;
+	Aws::String LastEvaluatedStreamArn;
+	int NumberOfEmptyShards = 0;
+	int NumberOfEmptyShardsLimit = 5;
 private:
 	GENERATED_BODY()
 
@@ -39,6 +43,8 @@ protected:
 public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
+	virtual void Shutdown() override;
+	
 	void handle_signal(int s);
 	static void connect_callback(mosquitto* mosq, void* obj, int result);
 	static void message_callback(mosquitto* mosq, void* obj, const mosquitto_message* message);
@@ -47,7 +53,11 @@ public:
 	void Subscribe();
 	static int ResultCode;
 	// static int RunStatus;
-	virtual void Shutdown() override;
+	
+	void DynamoDBStreamsReplay(FDateTime TReplayStartFrom);
+	void SingleStreamReplay(const Aws::DynamoDBStreams::Model::Stream& Stream, FDateTime TReplayStartFrom);
+	void IterateShard(const Aws::DynamoDBStreams::Model::GetShardIteratorResult& GetShardIteratorResult, FDateTime TReplayStartFrom);
+	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records, FDateTime TReplayStartFrom);
 
 	UFUNCTION(BlueprintCallable)
 	ALocationMarker* CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType);
