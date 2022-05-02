@@ -30,6 +30,7 @@ public:
 	Aws::DynamoDBStreams::DynamoDBStreamsClient* StreamsClient;
 	Aws::String LastEvaluatedShardId;
 	Aws::String LastEvaluatedSequenceNumber;
+	Aws::String LastEvaluatedStreamArn;
 	int NumberOfEmptyShards = 0;
 	int NumberOfEmptyShardsLimit = 5;
 private:

@@ -65,6 +65,7 @@ void UMojexaSpacesMarkerManager::DynamoDBStreamsReplay(FDateTime TReplayStartFro
 	if (ListStreamsOutcome.IsSuccess())
 	{
 		const Aws::DynamoDBStreams::Model::ListStreamsResult ListStreamsResult = ListStreamsOutcome.GetResult();
+		LastEvaluatedStreamArn = ListStreamsResult.GetLastEvaluatedStreamArn();
 		const Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = ListStreamsResult.GetStreams();
 		if (Streams.size() == 0)
 		{
@@ -244,8 +245,14 @@ void UMojexaSpacesMarkerManager::ProcessDynamoDBStreamRecords(Aws::Vector<Aws::D
 						} else
 						{
 							// find and move the existing dynamic marker
-							ALocationMarker* DynamicMarker = *AllMarkers.Find(DynamicMarkerDeviceID);
-							UE_LOG(LogTemp, Warning, TEXT("Found Dynamic Marker: %s"), *DynamicMarker->ToString());
+							ALocationMarker* Marker = *AllMarkers.Find(DynamicMarkerDeviceID);
+							UE_LOG(LogTemp, Warning, TEXT("Found Dynamic Marker: %s"), *Marker->ToString());
+							if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
+							{
+								FVector Location = FVector(Lon, Lat, Elev);
+								DynamicMarker->EnqueueLocation(Location);
+								UE_LOG(LogTemp, Warning, TEXT("Queued new location %s for marker %s"), *Location.ToString(), *Marker->ToString());
+							}
 						}
 					} else if (MarkerType == ELocationMarkerType::Temporary)
 					{
@@ -357,17 +364,15 @@ ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLoc
 
 	switch (MarkerType)
 	{
-	case ELocationMarkerType::Static:
-		MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(SpawnLocation, FRotator::ZeroRotator);
-		break;
-	case ELocationMarkerType::Temporary:
-		MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(SpawnLocation, FRotator::ZeroRotator);
-		break;
-	case ELocationMarkerType::Dynamic:
-		MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(SpawnLocation, FRotator::ZeroRotator);
-		ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor);
-		DynamicMarker->ManagerDelegate.BindUFunction(this, FName("GetLatestRecord"));
-		break;
+		case ELocationMarkerType::Static:
+			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(SpawnLocation, FRotator::ZeroRotator);
+			break;
+		case ELocationMarkerType::Temporary:
+			MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(SpawnLocation, FRotator::ZeroRotator);
+			break;
+		case ELocationMarkerType::Dynamic:
+			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(SpawnLocation, FRotator::ZeroRotator);
+			break;
 	}
 
 	ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor);

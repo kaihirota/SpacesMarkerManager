@@ -14,14 +14,20 @@ class MYPROJECT_API ADynamicMarker : public ALocationMarker
 public:
 	// Sets default values for this actor's properties
 	ADynamicMarker();
-
-	FTimerHandle TimerHandle;
-
-	const float InterpolationsPerSecond = 1000.0f;
-
+	
 	const FColor BaseColor = FColor::Purple;
+	
+	UPROPERTY(BlueprintReadWrite)
+	float PollIntervalInSeconds = 5.0f;
+	
+	UPROPERTY(BlueprintReadWrite)
+	float InitialDelay = 0.5f;
+	
+	const float InterpolationsPerSecond = 1000.0f;
+	TQueue<FVector> CoordinateQueue;
+	FVector NextLocation;
+	FVector Step;
 
-	// TSharedRef<AMarkerManager> MarkerManager;
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -29,36 +35,7 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	void RepeatingFunction();
-
-	DECLARE_DELEGATE_RetVal_TwoParams(FVector, FMarkerManagerDelegate, FString, FDateTime)
-	FMarkerManagerDelegate ManagerDelegate;
-
-	UFUNCTION()
-	void UpdateLocation(FVector Location);
-
-	FVector NextLocation;
-	FVector PreviousLocation;
-	FVector Step;
-
-	UPROPERTY(BlueprintReadWrite)
-	float PollIntervalInSeconds = 3.0f;
 	
-	UPROPERTY(BlueprintReadWrite)
-	float InitialDelay = 3.0f;
-
-	// UTimelineComponent* platformTimeline;
-	//
-	// //Delegate signature for the function which will handle our Finished event.
-	// FOnTimelineEvent TimelineFinishedEvent;
-	//
-	// UFUNCTION()
-	// void TimelineFinishedFunction();
-	//
-
-
-	// FOnTimelineFloat InterpFunction;
-	// FTimeline Timeline;
-
-	// DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FVector, FMarkerManagerDelegate, FString, FDateTime );
+	UFUNCTION()
+	void EnqueueLocation(FVector Location);
 };
