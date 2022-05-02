@@ -64,7 +64,8 @@ protected:
 	void CreateTemporaryMarker();
 	void GetMarkers();
 	void RemoveSelectedMarkers();
-	void ListenToStreams();
+	void DynamoDBStreamsReplay();
+	void DynamoDBStreamsListen();
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);
@@ -100,7 +101,6 @@ protected:
 
 	void BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location);
 	void EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location);
-	void TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location);
 	TouchData TouchItem;
 
 protected:

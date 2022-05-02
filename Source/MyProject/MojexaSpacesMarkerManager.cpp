@@ -49,6 +49,11 @@ void UMojexaSpacesMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initialized"));
 }
 
+void UMojexaSpacesMarkerManager::ListenDynamoDBStreams()
+{
+	ScanDynamoDBStreams(Aws::DynamoDBStreams::Model::ShardIteratorType::LATEST, FDateTime::Now());
+}
+
 /**
  * @ Do a "replay" of the inserts in the last 24 hours
  * Start reading at the last (untrimmed) stream record,
@@ -57,7 +62,12 @@ void UMojexaSpacesMarkerManager::Init()
  * Stream records whose age exceeds this limit are subject to
  * removal (trimming) from the stream.
  */
-void UMojexaSpacesMarkerManager::DynamoDBStreamsReplay(FDateTime TReplayStartFrom)
+void UMojexaSpacesMarkerManager::ScanDynamoDBStreams(FDateTime TReplayStartFrom)
+{
+	ScanDynamoDBStreams(Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON, TReplayStartFrom);
+}
+
+void UMojexaSpacesMarkerManager::ScanDynamoDBStreams(Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Finding Streams of DynamoDB table %s"), *FString(DynamoDBTableName.c_str()));
 	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome = StreamsClient->ListStreams(
@@ -75,7 +85,7 @@ void UMojexaSpacesMarkerManager::DynamoDBStreamsReplay(FDateTime TReplayStartFro
 			UE_LOG(LogTemp, Warning, TEXT("Found %d Streams of DynamoDB table %s"), Streams.size(), *FString(DynamoDBTableName.c_str()));
 			for (auto Stream : Streams)
 			{
-				SingleStreamReplay(Stream, TReplayStartFrom);
+				ScanStream(Stream, ShardIteratorType, TReplayStartFrom);
 			} 
 		}
 	} else
@@ -84,10 +94,13 @@ void UMojexaSpacesMarkerManager::DynamoDBStreamsReplay(FDateTime TReplayStartFro
 	}
 }
 
-void UMojexaSpacesMarkerManager::SingleStreamReplay(const Aws::DynamoDBStreams::Model::Stream& Stream, FDateTime TReplayStartFrom)
+void UMojexaSpacesMarkerManager::ScanStream(
+	const Aws::DynamoDBStreams::Model::Stream& Stream,
+	Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType,
+	FDateTime TReplayStartFrom)
 {
 	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome;
-	UE_LOG(LogTemp, Warning, TEXT("Replaying Stream ARN %s"), *FString(Stream.GetStreamArn().c_str()));
+	UE_LOG(LogTemp, Warning, TEXT("Stream ARN %s"), *FString(Stream.GetStreamArn().c_str()));
 	DescribeStreamOutcome = StreamsClient->DescribeStream(
 	Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(Stream.GetStreamArn()));
 	if (DescribeStreamOutcome.IsSuccess())
@@ -110,13 +123,8 @@ void UMojexaSpacesMarkerManager::SingleStreamReplay(const Aws::DynamoDBStreams::
 				ShardIteratorRequest = Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
 				                       .WithStreamArn(Stream.GetStreamArn())
 				                       .WithShardId(Shard.GetShardId())
-				                       .WithShardIteratorType(Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON);
-
-				ShardIteratorOutcome = StreamsClient->GetShardIterator(ShardIteratorRequest);
-				if (ShardIteratorOutcome.IsSuccess())
-				{
-					IterateShard(ShardIteratorOutcome.GetResultWithOwnership(), TReplayStartFrom);
-				}
+				                       .WithShardIteratorType(ShardIteratorType);
+				IterateShards(ShardIteratorRequest, ShardIteratorType, TReplayStartFrom);
 			}
 		}
 		LastEvaluatedShardId = DescribeStreamResult.GetStreamDescription().GetLastEvaluatedShardId();
@@ -128,35 +136,42 @@ void UMojexaSpacesMarkerManager::SingleStreamReplay(const Aws::DynamoDBStreams::
 	}
 }
 
-void UMojexaSpacesMarkerManager::IterateShard(
-	const Aws::DynamoDBStreams::Model::GetShardIteratorResult& GetShardIteratorResult, FDateTime TReplayStartFrom)
+void UMojexaSpacesMarkerManager::IterateShards(
+	const Aws::DynamoDBStreams::Model::GetShardIteratorRequest& ShardIteratorRequest, Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom)
 {
-	Aws::String ShardIterator = GetShardIteratorResult.GetShardIterator();
-	int processedRecordCount = 0;
-	int shardPageCount = 0;
-	while (ShardIterator != "" && NumberOfEmptyShards <= NumberOfEmptyShardsLimit)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *FString(ShardIterator.c_str()));
-						
-		Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome;
-		GetRecordsOutcome = StreamsClient->GetRecords(Aws::DynamoDBStreams::Model::GetRecordsRequest()
-			.WithShardIterator(ShardIterator));
-		if (GetRecordsOutcome.IsSuccess())
+		int processedRecordCount = 0;
+		int shardPageCount = 0;
+		do
 		{
-			Aws::DynamoDBStreams::Model::GetRecordsResult GetRecordsResult = GetRecordsOutcome.GetResult();
-			Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = GetRecordsResult.GetRecords();
-			ProcessDynamoDBStreamRecords(Records, TReplayStartFrom);
-			processedRecordCount += Records.size();
-			if (ShardIterator == GetRecordsResult.GetNextShardIterator()) break;
-			ShardIterator = GetRecordsResult.GetNextShardIterator();
-			shardPageCount++;
-		} else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"), *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
-			break;
-		}
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Processing complete. Processed %d events from %d pages"), processedRecordCount, shardPageCount);
+			Aws::DynamoDBStreams::Model::GetShardIteratorOutcome GetShardIteratorOutcome = StreamsClient->GetShardIterator(ShardIteratorRequest);
+			if (GetShardIteratorOutcome.IsSuccess())
+			{
+				Aws::DynamoDBStreams::Model::GetShardIteratorResult Result = GetShardIteratorOutcome.GetResult();
+				if (FString(ShardIterator.c_str()) == "")
+				{
+					UE_LOG(LogTemp, Warning, TEXT("ShardIterator not created. Creating it now."));
+					ShardIterator = Result.GetShardIterator();
+					break;
+				}
+				UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *FString(ShardIterator.c_str()));
+									
+				Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome = StreamsClient->GetRecords(
+					Aws::DynamoDBStreams::Model::GetRecordsRequest().WithShardIterator(ShardIterator));
+				if (GetRecordsOutcome.IsSuccess())
+				{
+					Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = GetRecordsOutcome.GetResult().GetRecords();
+					ProcessDynamoDBStreamRecords(Records, TReplayStartFrom);
+					processedRecordCount += Records.size();
+					shardPageCount++;
+					ShardIterator = GetRecordsOutcome.GetResult().GetNextShardIterator();
+				} else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"), *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
+					break;
+				}
+				UE_LOG(LogTemp, Warning, TEXT("Processing complete. Processed %d events from %d pages"), processedRecordCount, shardPageCount);
+			}
+		} while (ShardIterator != "" && NumberOfEmptyShards <= NumberOfEmptyShardsLimit);
 }
 
 void UMojexaSpacesMarkerManager::ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records, FDateTime TReplayStartFrom)

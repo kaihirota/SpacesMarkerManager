@@ -73,7 +73,9 @@ void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 
 	PlayerInputComponent->BindAction("GetMarkers", IE_Pressed, this, &AMyProjectCharacter::GetMarkers);
 	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this, &AMyProjectCharacter::RemoveSelectedMarkers);
-	PlayerInputComponent->BindAction("ListenToStreams", IE_Pressed, this, &AMyProjectCharacter::ListenToStreams);
+
+	PlayerInputComponent->BindAction("DynamoDBStreamsReplay", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsReplay);
+	PlayerInputComponent->BindAction("DynamoDBStreamsListen", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsListen);
 
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
@@ -189,11 +191,19 @@ void AMyProjectCharacter::RemoveSelectedMarkers()
 	}
 }
 
-void AMyProjectCharacter::ListenToStreams()
+void AMyProjectCharacter::DynamoDBStreamsReplay()
 {
 	if (MarkerManager != nullptr)
 	{
-		MarkerManager->DynamoDBStreamsReplay(FDateTime::Now() - FTimespan::FromHours(24.0));
+		MarkerManager->ScanDynamoDBStreams(FDateTime::Now() - FTimespan::FromHours(24.0));
+	}
+}
+
+void AMyProjectCharacter::DynamoDBStreamsListen()
+{
+	if (MarkerManager != nullptr)
+	{
+		MarkerManager->ListenDynamoDBStreams();
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "aws/dynamodb/DynamoDBClient.h"
 #include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
+#include "aws/dynamodbstreams/model/ShardIteratorType.h"
 #include "Interfaces/IHttpRequest.h"
 #include "MojexaSpacesMarkerManager.generated.h"
 
@@ -31,6 +32,7 @@ public:
 	Aws::String LastEvaluatedShardId;
 	Aws::String LastEvaluatedSequenceNumber;
 	Aws::String LastEvaluatedStreamArn;
+	Aws::String ShardIterator = "";
 	int NumberOfEmptyShards = 0;
 	int NumberOfEmptyShardsLimit = 5;
 private:
@@ -42,9 +44,11 @@ protected:
 public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
-	void DynamoDBStreamsReplay(FDateTime TReplayStartFrom);
-	void SingleStreamReplay(const Aws::DynamoDBStreams::Model::Stream& Stream, FDateTime TReplayStartFrom);
-	void IterateShard(const Aws::DynamoDBStreams::Model::GetShardIteratorResult& GetShardIteratorResult, FDateTime TReplayStartFrom);
+	void ListenDynamoDBStreams();
+	void ScanDynamoDBStreams(FDateTime TReplayStartFrom);
+	void ScanDynamoDBStreams(Aws::DynamoDBStreams::Model::ShardIteratorType, FDateTime TReplayStartFrom);
+	void ScanStream(const Aws::DynamoDBStreams::Model::Stream& Stream, Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
+	void IterateShards(const Aws::DynamoDBStreams::Model::GetShardIteratorRequest& ShardIteratorRequest, Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
 	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records, FDateTime TReplayStartFrom);
 	virtual void Shutdown() override;
 
