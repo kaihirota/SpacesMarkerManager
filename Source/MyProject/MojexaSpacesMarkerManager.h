@@ -32,7 +32,7 @@ public:
 	Aws::String LastEvaluatedShardId;
 	Aws::String LastEvaluatedSequenceNumber;
 	Aws::String LastEvaluatedStreamArn;
-	Aws::String ShardIterator = "";
+	FString ShardIterator = "";
 	int NumberOfEmptyShards = 0;
 	int NumberOfEmptyShardsLimit = 5;
 private:
@@ -40,21 +40,19 @@ private:
 
 protected:
 	void OnGetMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
-	void OnDeleteMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	static void OnDeleteMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 public:
 	UMojexaSpacesMarkerManager(const FObjectInitializer& ObjectInitializer);
 	virtual void Init() override;
-	void ListenDynamoDBStreams();
-	void ScanDynamoDBStreams(FDateTime TReplayStartFrom);
-	void ScanDynamoDBStreams(Aws::DynamoDBStreams::Model::ShardIteratorType, FDateTime TReplayStartFrom);
+	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams(Aws::String TableName);
+	Aws::Vector<Aws::DynamoDBStreams::Model::Shard> GetShards(Aws::String StreamArn) const;
 	void ScanStream(const Aws::DynamoDBStreams::Model::Stream& Stream, Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
-	void IterateShards(const Aws::DynamoDBStreams::Model::GetShardIteratorRequest& ShardIteratorRequest, Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
+	void IterateShard(const Aws::String StreamArn, const Aws::DynamoDBStreams::Model::Shard Shard, Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
 	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records, FDateTime TReplayStartFrom);
 	virtual void Shutdown() override;
 
 	UFUNCTION(BlueprintCallable)
 	ALocationMarker* CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType);
-	ALocationMarker* CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp, const FString DeviceID);
 	ALocationMarker* CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp, const FString DeviceID,
 	                              const ELocationMarkerType MarkerType);
 	ALocationMarker* CreateMarkerFromJsonObject(const FJsonObject* JsonObject);
@@ -78,5 +76,5 @@ public:
 	void DeleteSelectedMarkers(bool DeleteFromDB = true);
 
 	UFUNCTION(BlueprintCallable)
-	void DeleteMarkerFromDB(ALocationMarker* Marker);
+	bool DeleteMarkerFromDB(ALocationMarker* Marker);
 };

@@ -39,9 +39,6 @@ void ADynamicMarker::Tick(const float DeltaTime)
 		if (CoordinateQueue.Dequeue(NextLocation))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Dynamic Marker %s at %s, next stop %s"), *DeviceID, *GetActorLocation().ToString(), *NextLocation.ToString());
-		} else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Dynamic Marker %s reached final destination %s"), *DeviceID, *GetActorLocation().ToString());
 		}
 	} else
 	{

@@ -28,12 +28,15 @@ static const FString PositionYAttributeName = "latitude";
 static const FString PositionZAttributeName = "elevation";
 static const FString MarkerTypeAttributeName = "marker_type";
 
-static const Aws::String PartitionKeyAttributeNameAws = FStringToAwsString("device_id");
-static const Aws::String SortKeyAttributeNameAws = FStringToAwsString("created_timestamp");
-static const Aws::String PositionXAttributeNameAws = FStringToAwsString("longitude");
-static const Aws::String PositionYAttributeNameAws = FStringToAwsString("latitude");
-static const Aws::String PositionZAttributeNameAws = FStringToAwsString("elevation");
-static const Aws::String MarkerTypeAttributeNameAws = FStringToAwsString("marker_type");
+static const Aws::String PartitionKeyAttributeNameAws = FStringToAwsString(PartitionKeyAttributeName);
+static const Aws::String SortKeyAttributeNameAws = FStringToAwsString(SortKeyAttributeName);
+static const Aws::String PositionXAttributeNameAws = FStringToAwsString(PositionXAttributeName);
+static const Aws::String PositionYAttributeNameAws = FStringToAwsString(PositionYAttributeName);
+static const Aws::String PositionZAttributeNameAws = FStringToAwsString(PositionZAttributeName);
+static const Aws::String MarkerTypeAttributeNameAws = FStringToAwsString(MarkerTypeAttributeName);
 
 static const bool UseDynamoDBLocal = true;
 static const Aws::String DynamoDBLocalEndpoint = "http://localhost:8000";
+
+// DynamoDB Streams
+static const double PollingInterval = 2.0f;

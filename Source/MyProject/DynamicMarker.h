@@ -16,13 +16,6 @@ public:
 	ADynamicMarker();
 	
 	const FColor BaseColor = FColor::Purple;
-	
-	UPROPERTY(BlueprintReadWrite)
-	float PollIntervalInSeconds = 5.0f;
-	
-	UPROPERTY(BlueprintReadWrite)
-	float InitialDelay = 0.5f;
-	
 	const float InterpolationsPerSecond = 1000.0f;
 	TQueue<FVector> CoordinateQueue;
 	FVector NextLocation;

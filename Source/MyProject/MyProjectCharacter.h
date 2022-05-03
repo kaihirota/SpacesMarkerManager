@@ -58,14 +58,20 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	UMojexaSpacesMarkerManager* MarkerManager;
 
+	FTimerHandle TimerHandle;
+
+	bool Listening = false;
+
 protected:
 	/** Spawn a LocationMarker. */
 	void CreateLocationMarker();
 	void CreateTemporaryMarker();
 	void GetMarkers();
 	void RemoveSelectedMarkers();
+	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams();
 	void DynamoDBStreamsReplay();
 	void DynamoDBStreamsListen();
+	void DynamoDBStreamsListen_();
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);
