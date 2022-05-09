@@ -17,44 +17,58 @@ public:
 
 	// Sets default values for this actor's properties
 	ALocationMarker();
-	void ToggleSelection();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	FColor BaseColor = FColor::Turquoise;
 
 	/* Static Mesh Component */
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, Category=Default)
 	UStaticMeshComponent* StaticMeshComp;
 
 	/* Sphere Component (not static mesh) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, Category=Default)
 	class USphereComponent* SphereComp;
 
 	/* Emissive material */
-	UPROPERTY(EditDefaultsOnly, Category=Default)
+	UPROPERTY(VisibleAnywhere, Category=Default)
 	UMaterialInterface* EmissiveMatInterface;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
 	UMaterialInstanceDynamic* DynamicMaterial;
 	
-	const FColor BaseColor = FColor::Turquoise;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
 	FString DeviceID;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	bool Selected;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	/* Location and timestamp */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
 	FLocationTs LocationTs;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	bool Selected;
 
-	UFUNCTION(BlueprintCallable)
-	void SetColor(const FLinearColor Color) const;
+	/**
+	* Select or unselect this marker
+	* @returns Selected [bool] The value of the selected state 
+	**/
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	bool ToggleSelection();
+	
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
 	FLinearColor GetColor() const;
-	void SetOpacity(float Val) const;
+	
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	void SetColor(const FLinearColor Color) const;
+
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
 	float GetOpacity() const;
-
-
-	UFUNCTION(BlueprintCallable)
+	
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	void SetOpacity(float OpacityVal) const;
+	
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
 	FString ToString() const;
 
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
 	FString ToJsonString() const;
 
 	TSharedRef<FJsonObject> ToJsonObject() const;

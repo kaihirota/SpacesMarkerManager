@@ -13,6 +13,7 @@ UCLASS()
 class MYPROJECT_API UMarkerManager : public UGameInstance
 {
 	GENERATED_BODY()
+
 public:
 	// Maps from DeviceID to LocationMarker
 	TMap<FString, ALocationMarker*> LocationMarkers;
@@ -92,16 +93,24 @@ public:
 	Aws::Vector<Aws::DynamoDBStreams::Model::Shard> GetShards(Aws::String StreamArn) const;
 
 	/**
-	 * Do a "replay" of the inserts in the last 24 hours
-	 * Start reading at the last (untrimmed) stream record,
-	 * which is the oldest record in the shard.
-	 * In DynamoDB Streams, there is a 24 hour limit on data retention.
-	 * Stream records whose age exceeds this limit are subject to
-	 * removal (trimming) from the stream.
-	 */
-	// UFUNCTION(BlueprintCallable)
+	* Do a "replay" of the inserts in the last 24 hours
+	* Start reading at the last (untrimmed) stream record,
+	* which is the oldest record in the shard.
+	* In DynamoDB Streams, there is a 24 hour limit on data retention.
+	* Stream records whose age exceeds this limit are subject to
+	* removal (trimming) from the stream.
+	*/
 	void ScanStream(const Aws::DynamoDBStreams::Model::Stream& Stream,
 	                Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
+
+	/**
+	* Given a shard, create shard iterator with the specified ShardIteratorType
+	* and use that to iterate through the shard.
+	* @param StreamArn
+	* @param Shard
+	* @param ShardIteratorType
+	* @param TReplayStartFrom For TRIM_HORIZON shard iterator, this can be specified as a filter to skip the oldest records.
+	*/
 	void IterateShard(const Aws::String StreamArn, const Aws::DynamoDBStreams::Model::Shard Shard,
 	                  Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
 	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records,

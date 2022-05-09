@@ -14,19 +14,22 @@ class MYPROJECT_API ATemporaryMarker : public ALocationMarker
 public:
 	// Sets default values for this actor's properties
 	ATemporaryMarker();
-	const FColor BaseColor = FColor::Red;
 
-	/* Initial Counter */
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	FColor DefaultColor = FColor::Red;
+
+	/* Initial Counter value */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
 	float InitialCounter = 1000.0f;
 
-	/* Counter */
-	UPROPERTY(EditAnywhere)
+	/* Current Counter value */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
 	int Counter = InitialCounter;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
 	int CounterTickSize = 1;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
 	FTimerHandle TimerHandle;
 
 protected:
@@ -36,7 +39,10 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	void SetOpacity(float Opacity) const;
+
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
 	void IncrementCounter(int Count);
+
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
 	void DecrementCounter(int Count);
 };

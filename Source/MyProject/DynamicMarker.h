@@ -14,10 +14,17 @@ class MYPROJECT_API ADynamicMarker : public ATemporaryMarker
 public:
 	// Sets default values for this actor's properties
 	ADynamicMarker();
-	const FColor BaseColor = FColor::Purple;
-	
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	FColor DynamicMarkerColor = FColor::Purple;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
 	int idx = 0;
-	const float InterpolationsPerSecond = 1000.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	float InterpolationsPerSecond = 1000.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
 	TArray<FLocationTs> HistoryArr; // heap
 
 protected:
@@ -27,11 +34,13 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
 	FString ToString() const;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
 	void AddLocationTs(const FLocationTs Location);
 	
-	TSharedRef<FJsonObject> ToJsonObject() const;
 	FString ToJsonString() const;
+	
+	TSharedRef<FJsonObject> ToJsonObject() const;
 };

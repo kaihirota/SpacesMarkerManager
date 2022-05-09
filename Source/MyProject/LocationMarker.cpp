@@ -42,13 +42,14 @@ ALocationMarker::ALocationMarker()
 	}
 }
 
-void ALocationMarker::ToggleSelection()
+bool ALocationMarker::ToggleSelection()
 {
 	Selected = !Selected;
 	if (Selected) SetColor(FColor::Red);
 	else SetColor(BaseColor);
 	UE_LOG(LogTemp, Log, TEXT("%s: %s - %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *GetName(),
 	       *ToString());
+	return Selected;
 }
 
 void ALocationMarker::SetColor(const FLinearColor Color) const
@@ -63,9 +64,9 @@ FLinearColor ALocationMarker::GetColor() const
 	return Color;
 }
 
-void ALocationMarker::SetOpacity(const float Val) const
+void ALocationMarker::SetOpacity(const float OpacityVal) const
 {
-	DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), Val);
+	DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), OpacityVal);
 }
 
 float ALocationMarker::GetOpacity() const
