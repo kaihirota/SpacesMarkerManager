@@ -2,6 +2,8 @@
 
 
 #include "DynamicMarker.h"
+
+#include "JsonObjectConverter.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -22,32 +24,75 @@ void ADynamicMarker::BeginPlay()
 		SetReplicates(true);
 		SetReplicateMovement(true);
 	}
-	NextLocation = GetActorLocation();
+	LocationTs.Coordinate = GetActorLocation();
 }
 
-void ADynamicMarker::EnqueueLocation(const FVector Location)
+void ADynamicMarker::AddLocationTs(const FLocationTs Location)
 {
-	CoordinateQueue.Enqueue(Location);
+	HistoryArr.HeapPush(Location);
 }
 
 // Called every frame
 void ADynamicMarker::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (GetActorLocation() == NextLocation)
+	if (GetActorLocation() == LocationTs.Coordinate)
 	{
-		if (CoordinateQueue.Dequeue(NextLocation))
+		if ((idx >= 0) && (idx < HistoryArr.Num()))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Dynamic Marker %s at %s, next stop %s"), *DeviceID, *GetActorLocation().ToString(), *NextLocation.ToString());
+			LocationTs = HistoryArr[idx];
+			UE_LOG(LogTemp, Warning,
+				TEXT("Dynamic Marker %s at %s, next stop %s"),
+				*DeviceID,
+				*GetActorLocation().ToString(),
+				*LocationTs.Coordinate.ToString());
+			if (DeltaTime > 0) idx++;
+			else if (DeltaTime < 0) idx--;
 		}
 	} else
 	{
 		Step = FMath::VInterpConstantTo(
 			GetActorLocation(),
-			NextLocation,
+			LocationTs.Coordinate,
 			DeltaTime,
 			InterpolationsPerSecond);
 		SetActorLocation(Step, true, nullptr, ETeleportType::None);
-		UE_LOG(LogTemp, Warning, TEXT("Dynamic Marker %s %s %s"), *DeviceID, *Step.ToString(), *NextLocation.ToString());
 	}
+}
+
+FString ADynamicMarker::ToString() const
+{
+	TArray<FStringFormatArg> Args;
+	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
+	else Args.Add(FStringFormatArg(FString("")));
+	FString Ret = FString::Format(TEXT("LocationMarker(DeviceID='{0}', History=["), Args);
+	
+	for (FLocationTs Record : HistoryArr)
+	{
+		Args.Add(Record.ToString());
+	}
+	Ret.Append("])");
+	return Ret;
+}
+
+TSharedRef<FJsonObject> ADynamicMarker::ToJsonObject() const
+{
+	const TSharedRef<FJsonObject> JsonObject = Super::ToJsonObject();
+	TArray<TSharedPtr<FJsonValue>> History;
+	for (FLocationTs Record : HistoryArr)
+	{
+		TSharedRef<FJsonObject> JsonObj = MakeShareable(new FJsonObject);
+		FJsonObjectConverter::UStructToJsonObject(FLocationTs::StaticStruct(), &Record, JsonObj, 0, 0);
+		History.Add(MakeShareable(new FJsonValueObject(JsonObj)));
+	}
+	JsonObject->SetArrayField("history", History);
+	return JsonObject;
+}
+
+FString ADynamicMarker::ToJsonString() const
+{
+	FString OutputString;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+	FJsonSerializer::Serialize(ToJsonObject(), Writer);
+	return OutputString;
 }

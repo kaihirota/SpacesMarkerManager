@@ -254,13 +254,16 @@ void UMojexaSpacesMarkerManager::ProcessDynamoDBStreamRecords(
 						}
 						else
 						{
-							// find and move the existing dynamic marker
+							// dynamic marker with matching device id already exists
 							ALocationMarker* Marker = *AllMarkers.Find(DynamicMarkerDeviceID);
 							UE_LOG(LogTemp, Warning, TEXT("Found Dynamic Marker: %s"), *Marker->ToString());
 							if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
 							{
-								FVector Location = FVector(Lon, Lat, Elev);
-								DynamicMarker->EnqueueLocation(Location);
+								// pass the new data to the marker
+								FLocationTs Location = FLocationTs::FromLocationTimestamp(
+										FDateTime::FromUnixTimestamp(FCString::Atoi(*Timestamp)),
+										FVector(Lon, Lat, Elev));
+								DynamicMarker->AddLocationTs(Location);
 								UE_LOG(LogTemp, Warning, TEXT("Queued new location %s for marker %s"),
 								       *Location.ToString(), *Marker->ToString());
 							}
@@ -395,8 +398,8 @@ ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLoc
 		ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor);
 		if (Marker != nullptr)
 		{
-			Marker->Coordinate = SpawnLocation;
-			Marker->Timestamp = Timestamp;
+			Marker->LocationTs.Coordinate = SpawnLocation;
+			Marker->LocationTs.Timestamp = Timestamp;
 			Marker->DeviceID = DeviceID;
 
 			UE_LOG(LogTemp, Warning, TEXT("Created %s - %s"), *Marker->GetName(), *Marker->ToString());
@@ -424,17 +427,17 @@ bool UMojexaSpacesMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 	Request.AddItem(PartitionKeyAttributeNameAws, PartitionKeyValue);
 
 	Aws::DynamoDB::Model::AttributeValue SortKeyValue;
-	SortKeyValue.SetS(Aws::String(TCHAR_TO_UTF8(*FString::FromInt(Marker->Timestamp.ToUnixTimestamp()))));
+	SortKeyValue.SetS(Aws::String(TCHAR_TO_UTF8(*FString::FromInt(Marker->LocationTs.Timestamp.ToUnixTimestamp()))));
 	Request.AddItem(SortKeyAttributeNameAws, SortKeyValue);
 
 	Aws::DynamoDB::Model::AttributeValue Lon, Lat, Elev;
-	Lon.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->Coordinate.X))));
+	Lon.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Coordinate.X))));
 	Request.AddItem(PositionXAttributeNameAws, Lon);
 
-	Lat.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->Coordinate.Y))));
+	Lat.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Coordinate.Y))));
 	Request.AddItem(PositionYAttributeNameAws, Lat);
 
-	Elev.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->Coordinate.Z))));
+	Elev.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Coordinate.Z))));
 	Request.AddItem(PositionZAttributeNameAws, Elev);
 
 	const Aws::DynamoDB::Model::PutItemOutcome Outcome = DynamoClient->PutItem(Request);
@@ -625,7 +628,7 @@ bool UMojexaSpacesMarkerManager::DeleteMarkerFromDB(ALocationMarker* Marker)
 	Aws::DynamoDB::Model::AttributeValue PartitionKey;
 	PartitionKey.SetS(Aws::String(TCHAR_TO_UTF8(*Marker->DeviceID)));
 	Aws::DynamoDB::Model::AttributeValue SortKey;
-	const FString Timestamp = FString::FromInt(Marker->Timestamp.ToUnixTimestamp());
+	const FString Timestamp = FString::FromInt(Marker->LocationTs.Timestamp.ToUnixTimestamp());
 	SortKey.SetS(Aws::String(TCHAR_TO_UTF8(*Timestamp)));
 	// does not work when using global constants for some reason, data type mismatch even if using Aws::String
 	AttributeValues.emplace("device_id", PartitionKey);

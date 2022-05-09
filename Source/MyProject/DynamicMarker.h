@@ -16,10 +16,10 @@ public:
 	ADynamicMarker();
 	
 	const FColor BaseColor = FColor::Purple;
-	const float InterpolationsPerSecond = 1000.0f;
-	TQueue<FVector> CoordinateQueue;
-	FVector NextLocation;
 	FVector Step;
+	int idx = 0;
+	const float InterpolationsPerSecond = 1000.0f;
+	TArray<FLocationTs> HistoryArr; // heap
 
 protected:
 	// Called when the game starts or when spawned
@@ -28,7 +28,11 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	
+	FString ToString() const;
+
 	UFUNCTION()
-	void EnqueueLocation(FVector Location);
+	void AddLocationTs(const FLocationTs Location);
+	
+	TSharedRef<FJsonObject> ToJsonObject() const;
+	FString ToJsonString() const;
 };
