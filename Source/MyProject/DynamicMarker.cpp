@@ -2,6 +2,8 @@
 
 
 #include "DynamicMarker.h"
+
+#include "JsonObjectConverter.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -22,55 +24,75 @@ void ADynamicMarker::BeginPlay()
 		SetReplicates(true);
 		SetReplicateMovement(true);
 	}
-	PreviousLocation = GetActorLocation();
-	NextLocation = GetActorLocation();
-
-	GetWorld()->GetTimerManager()
-	          .SetTimer(TimerHandle, this, &ADynamicMarker::RepeatingFunction, PollIntervalInSeconds, true, InitialDelay);
+	LocationTs.Coordinate = GetActorLocation();
 }
 
-void ADynamicMarker::UpdateLocation(const FVector Location)
+void ADynamicMarker::AddLocationTs(const FLocationTs Location)
 {
-	PreviousLocation = GetActorLocation();
-	this->NextLocation = Location;
+	HistoryArr.HeapPush(Location);
 }
 
 // Called every frame
-void ADynamicMarker::Tick(float DeltaTime)
+void ADynamicMarker::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (PreviousLocation != NextLocation)
+	if (GetActorLocation() == LocationTs.Coordinate)
 	{
-		Step = FMath::VInterpConstantTo(GetActorLocation(), this->NextLocation, DeltaTime, InterpolationsPerSecond);
+		if ((idx >= 0) && (idx < HistoryArr.Num()))
+		{
+			LocationTs = HistoryArr[idx];
+			UE_LOG(LogTemp, Warning,
+				TEXT("Dynamic Marker %s at %s, next stop %s"),
+				*DeviceID,
+				*GetActorLocation().ToString(),
+				*LocationTs.Coordinate.ToString());
+			if (DeltaTime > 0) idx++;
+			else if (DeltaTime < 0) idx--;
+		}
+	} else
+	{
+		Step = FMath::VInterpConstantTo(
+			GetActorLocation(),
+			LocationTs.Coordinate,
+			DeltaTime,
+			InterpolationsPerSecond);
 		SetActorLocation(Step, true, nullptr, ETeleportType::None);
 	}
 }
 
-void ADynamicMarker::RepeatingFunction()
+FString ADynamicMarker::ToString() const
 {
-	if (ManagerDelegate.IsBound())
+	TArray<FStringFormatArg> Args;
+	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
+	else Args.Add(FStringFormatArg(FString("")));
+	FString Ret = FString::Format(TEXT("LocationMarker(DeviceID='{0}', History=["), Args);
+	
+	for (FLocationTs Record : HistoryArr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Requesting new location for : %s at %s"), *this->ToString(),
-		       *GetActorLocation().ToString());
-		const FVector NewLocation = ManagerDelegate.Execute(this->DeviceID, this->Timestamp);
-		if (NewLocation != FVector::ZeroVector)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Marker: %s Current loc: %s Next Location: %s"), *this->ToString(),
-			       *GetActorLocation().ToString(), *NextLocation.ToString());
-			if (NewLocation != GetActorLocation())
-			{
-				// SetActorLocation(NextLocation, true, nullptr, ETeleportType::None);
-				UpdateLocation(NewLocation);
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Location not updated for marker %s: Current loc: %s"), *this->ToString(),
-			       *GetActorLocation().ToString());
-		}
+		Args.Add(Record.ToString());
 	}
-	else
+	Ret.Append("])");
+	return Ret;
+}
+
+TSharedRef<FJsonObject> ADynamicMarker::ToJsonObject() const
+{
+	const TSharedRef<FJsonObject> JsonObject = Super::ToJsonObject();
+	TArray<TSharedPtr<FJsonValue>> History;
+	for (FLocationTs Record : HistoryArr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("No reference to MarkerManager found"));
+		TSharedRef<FJsonObject> JsonObj = MakeShareable(new FJsonObject);
+		FJsonObjectConverter::UStructToJsonObject(FLocationTs::StaticStruct(), &Record, JsonObj, 0, 0);
+		History.Add(MakeShareable(new FJsonValueObject(JsonObj)));
 	}
+	JsonObject->SetArrayField("history", History);
+	return JsonObject;
+}
+
+FString ADynamicMarker::ToJsonString() const
+{
+	FString OutputString;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+	FJsonSerializer::Serialize(ToJsonObject(), Writer);
+	return OutputString;
 }

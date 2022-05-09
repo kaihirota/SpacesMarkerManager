@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LocationTs.h"
 #include "Settings.h"
 #include "GameFramework/Actor.h"
 #include "LocationMarker.generated.h"
@@ -32,21 +33,17 @@ public:
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DynamicMaterial;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	FVector Coordinate;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	FVector Wgs84Coordinate;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	FDateTime Timestamp;
-
+	
+	const FColor BaseColor = FColor::Turquoise;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FString DeviceID;
-
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	bool Selected;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	FLocationTs LocationTs;
 
 	UFUNCTION(BlueprintCallable)
 	void SetColor(const FLinearColor Color) const;
@@ -54,7 +51,6 @@ public:
 	void SetOpacity(float Val) const;
 	float GetOpacity() const;
 
-	const FColor BaseColor = FColor::Turquoise;
 
 	UFUNCTION(BlueprintCallable)
 	FString ToString() const;
@@ -78,8 +74,8 @@ protected:
 inline bool operator==(const ALocationMarker& Marker1, const ALocationMarker& Marker2)
 {
 	return (Marker1.DeviceID == Marker2.DeviceID &&
-		Marker1.Coordinate == Marker1.Coordinate &&
-		Marker1.Timestamp == Marker2.Timestamp);
+		Marker1.LocationTs.Coordinate == Marker1.LocationTs.Coordinate &&
+		Marker1.LocationTs.Timestamp == Marker2.LocationTs.Timestamp);
 }
 
 inline uint32 GetTypeHash(const ALocationMarker& Thing)

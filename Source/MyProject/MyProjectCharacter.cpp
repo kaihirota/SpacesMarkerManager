@@ -73,7 +73,9 @@ void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 
 	PlayerInputComponent->BindAction("GetMarkers", IE_Pressed, this, &AMyProjectCharacter::GetMarkers);
 	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this, &AMyProjectCharacter::RemoveSelectedMarkers);
-	PlayerInputComponent->BindAction("ListenToStreams", IE_Pressed, this, &AMyProjectCharacter::ListenToStreams);
+
+	PlayerInputComponent->BindAction("DynamoDBStreamsReplay", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsReplay);
+	PlayerInputComponent->BindAction("DynamoDBStreamsListen", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsListen);
 
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
@@ -189,11 +191,57 @@ void AMyProjectCharacter::RemoveSelectedMarkers()
 	}
 }
 
-void AMyProjectCharacter::ListenToStreams()
+Aws::Vector<Aws::DynamoDBStreams::Model::Stream> AMyProjectCharacter::GetStreams()
 {
+	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams;
 	if (MarkerManager != nullptr)
 	{
-		MarkerManager->IterateStreams();
+		Streams = MarkerManager->GetStreams(DynamoDBTableName);
+		if (Streams.size() == 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ListStreams error: no streams were found"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Found %d Streams of DynamoDB table %s"), Streams.size(),
+				   *FString(DynamoDBTableName.c_str()));
+		}
+	}
+	return Streams;
+}
+
+void AMyProjectCharacter::DynamoDBStreamsReplay()
+{
+	const Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = GetStreams();
+	for (const auto Stream : Streams)
+	{
+		MarkerManager->ScanStream(Stream, Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON, FDateTime::Now() - FTimespan::FromHours(24.0));
+	}
+}
+
+void AMyProjectCharacter::DynamoDBStreamsListen()
+{
+	if (Listening)
+	{
+		GetWorldTimerManager().ClearTimer(TimerHandle);
+	} else
+	{
+		GetWorldTimerManager().SetTimer(TimerHandle, this, &AMyProjectCharacter::DynamoDBStreamsListen_, PollingInterval, true, 0.0f);
+	}
+	Listening = !Listening;
+}
+
+void AMyProjectCharacter::DynamoDBStreamsListen_()
+{
+	const Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = GetStreams();
+	if (Streams.size() > 0)
+	{
+		const Aws::DynamoDBStreams::Model::Stream Stream = Streams[0];
+		const Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = MarkerManager->GetShards(Stream.GetStreamArn());
+		if (Shards.size() > 0)
+		{
+			MarkerManager->IterateShard(Stream.GetStreamArn(), Shards[0], Aws::DynamoDBStreams::Model::ShardIteratorType::LATEST, NULL);
+		}
 	}
 }
 

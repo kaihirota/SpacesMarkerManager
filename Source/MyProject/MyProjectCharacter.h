@@ -58,13 +58,20 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	UMojexaSpacesMarkerManager* MarkerManager;
 
+	FTimerHandle TimerHandle;
+
+	bool Listening = false;
+
 protected:
 	/** Spawn a LocationMarker. */
 	void CreateLocationMarker();
 	void CreateTemporaryMarker();
 	void GetMarkers();
 	void RemoveSelectedMarkers();
-	void ListenToStreams();
+	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams();
+	void DynamoDBStreamsReplay();
+	void DynamoDBStreamsListen();
+	void DynamoDBStreamsListen_();
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);
@@ -100,7 +107,6 @@ protected:
 
 	void BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location);
 	void EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location);
-	void TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location);
 	TouchData TouchItem;
 
 protected:

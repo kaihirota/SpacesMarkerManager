@@ -81,8 +81,8 @@ FString ALocationMarker::ToString() const
 	TArray<FStringFormatArg> Args;
 	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
 	else Args.Add(FStringFormatArg(FString("")));
-	Args.Add(FStringFormatArg(Coordinate.ToString()));
-	Args.Add(FStringFormatArg(Timestamp.ToIso8601()));
+	Args.Add(FStringFormatArg(LocationTs.Coordinate.ToString()));
+	Args.Add(FStringFormatArg(LocationTs.Timestamp.ToIso8601()));
 	return FString::Format(TEXT("LocationMarker(DeviceID='{0}' Coordinate=({1}), Timestamp='{2}')"), Args);
 }
 
@@ -100,10 +100,10 @@ TSharedRef<FJsonObject> ALocationMarker::ToJsonObject() const
 
 	if (!DeviceID.IsEmpty()) JsonObject->SetStringField(PartitionKeyAttributeName, this->DeviceID);
 	else JsonObject->SetStringField(PartitionKeyAttributeName, FString(""));
-	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(Timestamp.ToUnixTimestamp()));
-	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(this->Coordinate.X));
-	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(this->Coordinate.Y));
-	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(this->Coordinate.Z));
+	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(LocationTs.Timestamp.ToUnixTimestamp()));
+	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(LocationTs.Coordinate.X));
+	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(LocationTs.Coordinate.Y));
+	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(LocationTs.Coordinate.Z));
 	return JsonObject;
 }
 
