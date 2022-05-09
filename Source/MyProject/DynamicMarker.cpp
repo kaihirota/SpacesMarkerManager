@@ -35,7 +35,6 @@ void ADynamicMarker::AddLocationTs(const FLocationTs Location)
 // Called every frame
 void ADynamicMarker::Tick(const float DeltaTime)
 {
-	Super::Tick(DeltaTime);
 	if (GetActorLocation() == LocationTs.Coordinate)
 	{
 		if ((idx >= 0) && (idx < HistoryArr.Num()))
@@ -48,10 +47,14 @@ void ADynamicMarker::Tick(const float DeltaTime)
 				*LocationTs.Coordinate.ToString());
 			if (DeltaTime > 0) idx++;
 			else if (DeltaTime < 0) idx--;
+			this->Counter = static_cast<int>(this->InitialCounter);
+		} else
+		{
+			Super::Tick(DeltaTime);
 		}
 	} else
 	{
-		Step = FMath::VInterpConstantTo(
+		const FVector Step = FMath::VInterpConstantTo(
 			GetActorLocation(),
 			LocationTs.Coordinate,
 			DeltaTime,

@@ -7,16 +7,15 @@
 #include "DynamicMarker.generated.h"
 
 UCLASS()
-class MYPROJECT_API ADynamicMarker : public ALocationMarker
+class MYPROJECT_API ADynamicMarker : public ATemporaryMarker
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this actor's properties
 	ADynamicMarker();
-	
 	const FColor BaseColor = FColor::Purple;
-	FVector Step;
+	
 	int idx = 0;
 	const float InterpolationsPerSecond = 1000.0f;
 	TArray<FLocationTs> HistoryArr; // heap

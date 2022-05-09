@@ -23,7 +23,9 @@ void ATemporaryMarker::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	DecrementCounter(1);
+	if (DeltaTime > 0) DecrementCounter(CounterTickSize);
+	else IncrementCounter(CounterTickSize);
+	
 	float Scale = Counter / InitialCounter;
 	if (Scale > 2.0f)
 	{

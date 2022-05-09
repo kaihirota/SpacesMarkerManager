@@ -14,15 +14,18 @@ class MYPROJECT_API ATemporaryMarker : public ALocationMarker
 public:
 	// Sets default values for this actor's properties
 	ATemporaryMarker();
+	const FColor BaseColor = FColor::Red;
 
 	/* Initial Counter */
 	UPROPERTY(EditAnywhere)
 	float InitialCounter = 1000.0f;
-	const FColor BaseColor = FColor::Red;
 
 	/* Counter */
 	UPROPERTY(EditAnywhere)
 	int Counter = InitialCounter;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int CounterTickSize = 1;
 
 	FTimerHandle TimerHandle;
 
