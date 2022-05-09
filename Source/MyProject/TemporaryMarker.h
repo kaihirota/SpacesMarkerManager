@@ -38,8 +38,5 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	void SetOpacity(float Opacity) const;
 	void IncrementCounter(int Count);
-	void IncrementCounter();
 	void DecrementCounter(int Count);
-	void DecrementCounter();
-	void RepeatingFunction();
 };

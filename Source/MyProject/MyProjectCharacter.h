@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MojexaSpacesMarkerManager.h"
+#include "MarkerManager.h"
 #include "GameFramework/Character.h"
 #include "MyProjectCharacter.generated.h"
 
@@ -56,19 +56,24 @@ public:
 	TSubclassOf<class ALocationMarker> MarkerClass;
 
 	UPROPERTY(BlueprintReadWrite)
-	UMojexaSpacesMarkerManager* MarkerManager;
+	UMarkerManager* MarkerManager;
 
 	FTimerHandle TimerHandle;
 
 	bool Listening = false;
 
 protected:
-	/** Spawn a LocationMarker. */
-	void CreateLocationMarker();
+	void CreateStaticMarker();
 	void CreateTemporaryMarker();
+	/** Spawn a LocationMarker. */
+	void CreateLocationMarker(const ELocationMarkerType MarkerType) const;
+
+	/** DynamoDB **/
 	void GetMarkers();
 	void RemoveSelectedMarkers();
-	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams();
+
+	/** DynamoDB Streams **/
+	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams() const;
 	void DynamoDBStreamsReplay();
 	void DynamoDBStreamsListen();
 	void DynamoDBStreamsListen_();
@@ -109,7 +114,6 @@ protected:
 	void EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location);
 	TouchData TouchItem;
 
-protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 	// End of APawn interface

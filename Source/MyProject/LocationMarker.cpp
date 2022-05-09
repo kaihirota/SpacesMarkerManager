@@ -31,8 +31,7 @@ ALocationMarker::ALocationMarker()
 		StaticMeshComp->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	};
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveGreen(
-		TEXT("Material'/Game/FirstPerson/EmissiveGreen.EmissiveGreen'"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveGreen(TEXT("/Game/EmissiveGreen.EmissiveGreen"));
 	if (EmissiveGreen.Succeeded())
 	{
 		DynamicMaterial = UMaterialInstanceDynamic::Create(EmissiveGreen.Object, nullptr);

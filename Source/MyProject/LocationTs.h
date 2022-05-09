@@ -10,18 +10,18 @@ struct FLocationTs
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
 	FDateTime Timestamp;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
 	FVector Coordinate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
 	FVector Wgs84Coordinate;
 
 	FLocationTs()
 	{
-		Coordinate = FVector();
+		Coordinate = FVector::ZeroVector;
 		Timestamp = FDateTime::Now();
 	}
 	

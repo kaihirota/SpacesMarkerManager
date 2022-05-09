@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MyProjectGameMode.h"
-#include "MyProjectHUD.h"
-#include "MyProjectCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMyProjectGameMode::AMyProjectGameMode()
@@ -12,7 +10,4 @@ AMyProjectGameMode::AMyProjectGameMode()
 	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnClassFinder(
 		TEXT("/Game/FirstPersonCPP/Blueprints/FirstPersonCharacter"));
 	DefaultPawnClass = PlayerPawnClassFinder.Class;
-
-	// use our custom HUD class
-	HUDClass = AMyProjectHUD::StaticClass();
 }

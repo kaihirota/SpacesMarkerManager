@@ -1,11 +1,24 @@
-# MyProject
+# MojexaSpaces
 
-Developed with Unreal Engine 4
+Mojexa is a SaaS asset and property management product. Our clients use Mojexa to manage major public infrastructure, property portfolios, schools, coffee shops, business assets and much more.
 
-```shell
-curl -i -X GET https://0flacbdme3.execute-api.ap-southeast-2.amazonaws.com/dev/
+Mojexa Spaces is a 3D digital twin of real world geographic spaces, built in Unreal Engine 4. It provides a way to visualise data on a local, regional, city, country or global scale within a virtual model built on accurate height maps and high resolution satellite imagery.
 
-curl -i -X POST https://0flacbdme3.execute-api.ap-southeast-2.amazonaws.com/dev/ -H 'Content-Type: application/json' -d '{ "device_id": "UEtest", "created_timestamp": 19947499999, "longitude": "778.107479", "latitude": "-99.0", "elevation": "268.373724"}'
+Mojexa Spaces is our new platform for our users to visualise their asset information. Users will be able to track the location of assets across the virtual geography in Spaces, providing a powerful new way of using their Mojexa software to manage their assets and properties.
 
-curl -i -X DELETE https://0flacbdme3.execute-api.ap-southeast-2.amazonaws.com/dev/ -H 'Content-Type: application/json' -d '{ "device_id": "test_device2", "created_timestamp": 1647876557}'
+This repository contains the LocationMarker classes and the LocationMarkerManager class written in C++, made to work well with Blueprint.
+
+## Get Started
+
+- Settings.h
+
+## Usage
+
+```c++
+void AMyProjectCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	// Singleton object is already instantiated automatically at start of the game
+	MarkerManager = GetWorld()->GetGameInstance<UMarkerManager>();
+}
 ```

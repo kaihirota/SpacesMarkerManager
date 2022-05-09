@@ -45,22 +45,7 @@ void ATemporaryMarker::IncrementCounter(const int Count)
 	Counter += Count;
 }
 
-void ATemporaryMarker::IncrementCounter()
-{
-	IncrementCounter(InitialCounter / 5);
-}
-
 void ATemporaryMarker::DecrementCounter(const int Count)
 {
 	Counter -= Count;
-}
-
-void ATemporaryMarker::DecrementCounter()
-{
-	DecrementCounter(1);
-}
-
-void ATemporaryMarker::RepeatingFunction()
-{
-	DecrementCounter(1);
 }

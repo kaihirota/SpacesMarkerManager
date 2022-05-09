@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "MojexaSpacesMarkerManager.h"
+#include "MarkerManager.h"
 
 #include "DynamicMarker.h"
 #include "Settings.h"
@@ -23,13 +23,13 @@
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/DefaultValueHelper.h"
 
-UMojexaSpacesMarkerManager::UMojexaSpacesMarkerManager(
+UMarkerManager::UMarkerManager(
 	const FObjectInitializer& ObjectInitializer) : Super(
 	ObjectInitializer)
 {
 }
 
-void UMojexaSpacesMarkerManager::Init()
+void UMarkerManager::Init()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initializing"));
 	Super::Init();
@@ -49,7 +49,7 @@ void UMojexaSpacesMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initialized"));
 }
 
-Aws::Vector<Aws::DynamoDBStreams::Model::Stream> UMojexaSpacesMarkerManager::GetStreams(const Aws::String TableName)
+Aws::Vector<Aws::DynamoDBStreams::Model::Stream> UMarkerManager::GetStreams(const Aws::String TableName)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fetching DynamoDB Streams for table: %s"), *FString(TableName.c_str()));
 	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome = StreamsClient->ListStreams(
@@ -68,7 +68,7 @@ Aws::Vector<Aws::DynamoDBStreams::Model::Stream> UMojexaSpacesMarkerManager::Get
 	return Streams;
 }
 
-Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMojexaSpacesMarkerManager::GetShards(const Aws::String StreamArn) const
+Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMarkerManager::GetShards(const Aws::String StreamArn) const
 {
 	UE_LOG(LogTemp, Warning, TEXT("Stream ARN %s"), *FString(StreamArn.c_str()));
 	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome = StreamsClient->DescribeStream(
@@ -87,15 +87,7 @@ Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMojexaSpacesMarkerManager::GetS
 	return Shards;
 }
 
-/**
- * @ Do a "replay" of the inserts in the last 24 hours
- * Start reading at the last (untrimmed) stream record,
- * which is the oldest record in the shard.
- * In DynamoDB Streams, there is a 24 hour limit on data retention.
- * Stream records whose age exceeds this limit are subject to
- * removal (trimming) from the stream.
- */
-void UMojexaSpacesMarkerManager::ScanStream(
+void UMarkerManager::ScanStream(
 	const Aws::DynamoDBStreams::Model::Stream& Stream,
 	const Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType,
 	const FDateTime TReplayStartFrom)
@@ -114,7 +106,7 @@ void UMojexaSpacesMarkerManager::ScanStream(
 	}
 }
 
-void UMojexaSpacesMarkerManager::IterateShard(
+void UMarkerManager::IterateShard(
 	const Aws::String StreamArn,
 	const Aws::DynamoDBStreams::Model::Shard Shard,
 	const Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType,
@@ -163,7 +155,7 @@ void UMojexaSpacesMarkerManager::IterateShard(
 	} while (ShardIterator != "" && NumberOfEmptyShards <= NumberOfEmptyShardsLimit);
 }
 
-void UMojexaSpacesMarkerManager::ProcessDynamoDBStreamRecords(
+void UMarkerManager::ProcessDynamoDBStreamRecords(
 	const Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records,
 	const FDateTime TReplayStartFrom)
 {
@@ -241,7 +233,7 @@ void UMojexaSpacesMarkerManager::ProcessDynamoDBStreamRecords(
 					{
 						JsonObject->SetStringField(MarkerTypeAttributeName, "dynamic");
 						FString DynamicMarkerDeviceID = JsonObject->GetStringField(PartitionKeyAttributeName);
-						if (!AllMarkers.Contains(DynamicMarkerDeviceID))
+						if (!LocationMarkers.Contains(DynamicMarkerDeviceID))
 						{
 							// spawn only if AllMarkers doesn't contain the device ID
 							const ALocationMarker* CreatedMarker = CreateMarkerFromJsonObject(JsonObject);
@@ -255,7 +247,7 @@ void UMojexaSpacesMarkerManager::ProcessDynamoDBStreamRecords(
 						else
 						{
 							// dynamic marker with matching device id already exists
-							ALocationMarker* Marker = *AllMarkers.Find(DynamicMarkerDeviceID);
+							ALocationMarker* Marker = *LocationMarkers.Find(DynamicMarkerDeviceID);
 							UE_LOG(LogTemp, Warning, TEXT("Found Dynamic Marker: %s"), *Marker->ToString());
 							if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
 							{
@@ -291,18 +283,14 @@ void UMojexaSpacesMarkerManager::ProcessDynamoDBStreamRecords(
 	}
 }
 
-void UMojexaSpacesMarkerManager::Shutdown()
+void UMarkerManager::Shutdown()
 {
 	Super::Shutdown();
 	Aws::ShutdownAPI(Aws::SDKOptions());
 	UE_LOG(LogTemp, Warning, TEXT("Game instance shutdown complete"));
 }
 
-/*
- * Given a Device ID, fetch the latest location recorded strictly
- * after the LastKnownTimestamp
- */
-FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDateTime LastKnownTimestamp)
+auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime LastKnownTimestamp) -> FVector
 {
 	Aws::DynamoDB::Model::QueryRequest Request;
 	Request.SetTableName(DynamoDBTableName);
@@ -310,7 +298,7 @@ FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDat
 
 	// Set Expression AttributeValues
 	Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> AttributeValues;
-	Aws::String PartitionKeyVal = Aws::String(TCHAR_TO_UTF8(*TargetDeviceID));
+	Aws::String PartitionKeyVal = Aws::String(TCHAR_TO_UTF8(*DeviceID));
 	AttributeValues.emplace(":valueToMatch", PartitionKeyVal);
 	Request.SetExpressionAttributeValues(AttributeValues);
 	Request.SetScanIndexForward(false);
@@ -343,7 +331,7 @@ FVector UMojexaSpacesMarkerManager::GetLatestRecord(FString TargetDeviceID, FDat
 	return FVector::ZeroVector;
 }
 
-ALocationMarker* UMojexaSpacesMarkerManager::CreateMarkerFromJsonObject(const FJsonObject* JsonObject)
+ALocationMarker* UMarkerManager::CreateMarkerFromJsonObject(const FJsonObject* JsonObject)
 {
 	const FDateTime Timestamp = FDateTime::FromUnixTimestamp(
 		FCString::Atoi(*JsonObject->GetStringField(SortKeyAttributeName)));
@@ -362,19 +350,18 @@ ALocationMarker* UMojexaSpacesMarkerManager::CreateMarkerFromJsonObject(const FJ
 		                    JsonObject->GetNumberField(PositionXAttributeName),
 		                    JsonObject->GetNumberField(PositionYAttributeName),
 		                    JsonObject->GetNumberField(PositionZAttributeName)),
+	                    MarkerType,
 	                    Timestamp,
-	                    JsonObject->GetStringField(PartitionKeyAttributeName),
-	                    MarkerType);
+	                    JsonObject->GetStringField(PartitionKeyAttributeName));
 }
 
-ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLocation,
-                                                          const ELocationMarkerType MarkerType)
+ALocationMarker* UMarkerManager::CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType)
 {
-	return CreateMarker(SpawnLocation, FDateTime::Now(), FString("UE"), MarkerType);
+	return CreateMarker(SpawnLocation, MarkerType, FDateTime::Now(), FString("UE"));
 }
 
-ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLocation, const FDateTime Timestamp,
-                                                          const FString DeviceID, const ELocationMarkerType MarkerType)
+ALocationMarker* UMarkerManager::CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType,
+											  const FDateTime Timestamp, const FString DeviceID)
 {
 	AActor* MarkerActor;
 
@@ -406,18 +393,15 @@ ALocationMarker* UMojexaSpacesMarkerManager::CreateMarker(const FVector SpawnLoc
 			UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToJsonString());
 		}
 
-		AllMarkers.Add(DeviceID, Marker);
-		UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), AllMarkers.Num());
+		LocationMarkers.Add(DeviceID, Marker);
+		UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), LocationMarkers.Num());
 		return Marker;
 	}
 	UE_LOG(LogTemp, Warning, TEXT("Error: Could not cast LocationMarker to desired type."));
 	return nullptr;
 }
 
-/*
- * Create new entry in DynamoDB from the given Location Marker using the aws-sdk DynamoDB client
- */
-bool UMojexaSpacesMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
+bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 {
 	Aws::DynamoDB::Model::PutItemRequest Request;
 	Request.SetTableName(DynamoDBTableName);
@@ -449,7 +433,7 @@ bool UMojexaSpacesMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 	return false;
 }
 
-void UMojexaSpacesMarkerManager::GetMarkersFromDB()
+void UMarkerManager::GetAllMarkersFromDynamoDB()
 {
 	Aws::DynamoDB::Model::ScanRequest Request;
 	Request.SetTableName(DynamoDBTableName);
@@ -504,7 +488,7 @@ void UMojexaSpacesMarkerManager::GetMarkersFromDB()
 		for (const auto DMarker : DynamicMarkers)
 		{
 			// spawn only if AllMarkers doesn't contain the device ID
-			if (!AllMarkers.Contains(DMarker.Value->GetStringField(PartitionKeyAttributeName)))
+			if (!LocationMarkers.Contains(DMarker.Value->GetStringField(PartitionKeyAttributeName)))
 			{
 				ALocationMarker* CreatedMarker = CreateMarkerFromJsonObject(DMarker.Value);
 				if (CreatedMarker != nullptr)
@@ -522,7 +506,7 @@ void UMojexaSpacesMarkerManager::GetMarkersFromDB()
 	}
 }
 
-void UMojexaSpacesMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response,
+void UMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response,
                                                       bool bWasSuccessful)
 {
 	if (Response->GetResponseCode() == 200 && bWasSuccessful)
@@ -577,36 +561,9 @@ void UMojexaSpacesMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, F
 	}
 }
 
-void UMojexaSpacesMarkerManager::DeleteMarker(ALocationMarker* Marker, bool DeleteFromDB)
+void UMarkerManager::DeleteSelectedMarkers(const bool DeleteFromDB)
 {
-	if (Marker != nullptr)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Destroying: %s - %s"), *Marker->GetName(), *Marker->ToString());
-		Marker->Destroy();
-
-		if (DeleteFromDB)
-		{
-			DeleteMarkerFromDB(Marker);
-		}
-		AllMarkers.FindAndRemoveChecked(Marker->DeviceID);
-	}
-}
-
-void UMojexaSpacesMarkerManager::DeleteMarkers(const bool DeleteFromDB)
-{
-	for (const auto& Pair : AllMarkers)
-	{
-		ALocationMarker* Marker = Pair.Value;
-		if (Marker != nullptr)
-		{
-			DeleteMarker(Marker, DeleteFromDB);
-		}
-	}
-}
-
-void UMojexaSpacesMarkerManager::DeleteSelectedMarkers(bool DeleteFromDB)
-{
-	for (auto It = AllMarkers.CreateIterator(); It; ++It)
+	for (auto It = LocationMarkers.CreateIterator(); It; ++It)
 	{
 		ALocationMarker* Marker = It.Value();
 		if (Marker != nullptr)
@@ -614,7 +571,7 @@ void UMojexaSpacesMarkerManager::DeleteSelectedMarkers(bool DeleteFromDB)
 			if (Marker->Selected)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("Destroying: %s - %s"), *Marker->GetName(), *Marker->ToString());
-				DeleteMarkerFromDB(Marker);
+				DeleteMarkerFromDynamoDB(Marker->DeviceID, Marker->LocationTs.Timestamp);
 				if (DeleteFromDB) Marker->Destroy();
 				It.RemoveCurrent();
 			}
@@ -622,15 +579,14 @@ void UMojexaSpacesMarkerManager::DeleteSelectedMarkers(bool DeleteFromDB)
 	}
 }
 
-bool UMojexaSpacesMarkerManager::DeleteMarkerFromDB(ALocationMarker* Marker)
+auto UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDateTime Timestamp) -> bool
 {
 	Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> AttributeValues;
 	Aws::DynamoDB::Model::AttributeValue PartitionKey;
-	PartitionKey.SetS(Aws::String(TCHAR_TO_UTF8(*Marker->DeviceID)));
+	PartitionKey.SetS(Aws::String(TCHAR_TO_UTF8(*DeviceID)));
 	Aws::DynamoDB::Model::AttributeValue SortKey;
-	const FString Timestamp = FString::FromInt(Marker->LocationTs.Timestamp.ToUnixTimestamp());
-	SortKey.SetS(Aws::String(TCHAR_TO_UTF8(*Timestamp)));
-	// does not work when using global constants for some reason, data type mismatch even if using Aws::String
+	SortKey.SetS(Aws::String(TCHAR_TO_UTF8(*FString::FromInt(Timestamp.ToUnixTimestamp()))));
+	// TODO does not work when using global constants for some reason, data type mismatch even if using Aws::String
 	AttributeValues.emplace("device_id", PartitionKey);
 	AttributeValues.emplace("created_timestamp", SortKey);
 	
@@ -641,7 +597,7 @@ bool UMojexaSpacesMarkerManager::DeleteMarkerFromDB(ALocationMarker* Marker)
 	return Outcome.IsSuccess();
 }
 
-void UMojexaSpacesMarkerManager::OnDeleteMarkersResponse(FHttpRequestPtr Request, const FHttpResponsePtr Response,
+void UMarkerManager::OnDeleteMarkersResponse(FHttpRequestPtr Request, const FHttpResponsePtr Response,
                                                          const bool bWasSuccessful)
 {
 	if (Response->GetResponseCode() != 200 || !bWasSuccessful)

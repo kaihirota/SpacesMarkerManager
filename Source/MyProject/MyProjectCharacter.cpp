@@ -47,7 +47,7 @@ void AMyProjectCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-	MarkerManager = GetWorld()->GetGameInstance<UMojexaSpacesMarkerManager>();
+	MarkerManager = GetWorld()->GetGameInstance<UMarkerManager>();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,7 +64,7 @@ void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 
 	// Bind fire event
 	PlayerInputComponent->BindAction("CreateLocationMarker", IE_Pressed, this,
-	                                 &AMyProjectCharacter::CreateLocationMarker);
+	                                 &AMyProjectCharacter::CreateStaticMarker);
 	PlayerInputComponent->BindAction("CreateTemporaryMarker", IE_Pressed, this,
 	                                 &AMyProjectCharacter::CreateTemporaryMarker);
 
@@ -90,7 +90,17 @@ void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AMyProjectCharacter::LookUpAtRate);
 }
 
-void AMyProjectCharacter::CreateLocationMarker()
+void AMyProjectCharacter::CreateStaticMarker()
+{
+	CreateLocationMarker(ELocationMarkerType::Static);
+}
+
+void AMyProjectCharacter::CreateTemporaryMarker()
+{
+	CreateLocationMarker(ELocationMarkerType::Temporary);
+}
+
+void AMyProjectCharacter::CreateLocationMarker(const ELocationMarkerType MarkerType) const
 {
 	FHitResult OutHit;
 	FVector Start = GetActorLocation();
@@ -117,58 +127,18 @@ void AMyProjectCharacter::CreateLocationMarker()
 					)
 				);
 			}
-			if (ALocationMarker* Marker = Cast<ALocationMarker>(OutHit.GetActor()))
+			if (ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(OutHit.GetActor()))
+			{
+				TemporaryMarker->IncrementCounter(50);
+			}
+			else if (ALocationMarker* Marker = Cast<ALocationMarker>(OutHit.GetActor()))
 			{
 				Marker->ToggleSelection();
 			}
 			else if (MarkerManager != nullptr)
 			{
-				Marker = MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Static);
+				Marker = MarkerManager->CreateMarker(OutHit.ImpactPoint, MarkerType);
 				MarkerManager->CreateMarkerInDB(Marker);
-			}
-		}
-	}
-}
-
-void AMyProjectCharacter::CreateTemporaryMarker()
-{
-	FHitResult OutHit;
-	FVector Start = GetActorLocation();
-	FVector ForwardVector = GetFirstPersonCameraComponent()->GetForwardVector();
-	FVector End = ((ForwardVector * FVector(1000000.f, 1000000.f, 1000000.f)) + Start);
-	FCollisionQueryParams CollisionParams;
-
-	DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1, 0, 1);
-
-	if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, CollisionParams))
-	{
-		if (OutHit.bBlockingHit)
-		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(
-					-1,
-					3.f,
-					FColor::Red,
-					FString::Printf(
-						TEXT("You are hitting: %s at %s"),
-						*OutHit.GetActor()->GetName(),
-						*OutHit.ImpactPoint.ToString()
-					)
-				);
-			}
-			// TODO: Move this if block into CreateMarkerFromUECoordinate?
-			// But MarkerManager does not have reference to FHitResult or "OutHit"
-			if (ATemporaryMarker* HitMarker = Cast<ATemporaryMarker>(OutHit.GetActor()))
-			{
-				HitMarker->IncrementCounter(50);
-			}
-			else
-			{
-				if (MarkerManager != nullptr)
-				{
-					MarkerManager->CreateMarker(OutHit.ImpactPoint, ELocationMarkerType::Temporary);
-				}
 			}
 		}
 	}
@@ -179,7 +149,7 @@ void AMyProjectCharacter::GetMarkers()
 {
 	if (MarkerManager != nullptr)
 	{
-		MarkerManager->GetMarkersFromDB();
+		MarkerManager->GetAllMarkersFromDynamoDB();
 	}
 }
 
@@ -191,7 +161,7 @@ void AMyProjectCharacter::RemoveSelectedMarkers()
 	}
 }
 
-Aws::Vector<Aws::DynamoDBStreams::Model::Stream> AMyProjectCharacter::GetStreams()
+Aws::Vector<Aws::DynamoDBStreams::Model::Stream> AMyProjectCharacter::GetStreams() const
 {
 	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams;
 	if (MarkerManager != nullptr)
@@ -253,7 +223,7 @@ void AMyProjectCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const 
 	}
 	if ((FingerIndex == TouchItem.FingerIndex) && (TouchItem.bMoved == false))
 	{
-		CreateLocationMarker();
+		CreateStaticMarker();
 	}
 	TouchItem.bIsPressed = true;
 	TouchItem.FingerIndex = FingerIndex;
