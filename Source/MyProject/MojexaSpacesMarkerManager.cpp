@@ -143,23 +143,29 @@ void UMojexaSpacesMarkerManager::IterateShard(
 	do
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *ShardIterator);
-		Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome = StreamsClient->GetRecords(
-			Aws::DynamoDBStreams::Model::GetRecordsRequest().WithShardIterator(
-				Aws::String(TCHAR_TO_UTF8(*ShardIterator))));
-		if (GetRecordsOutcome.IsSuccess())
-		{
-			Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = GetRecordsOutcome.GetResult().GetRecords();
-			ProcessDynamoDBStreamRecords(Records, TReplayStartFrom);
-			ProcessedRecordCount += Records.size();
-			ShardPageCount++;
-			ShardIterator = FString(GetRecordsOutcome.GetResult().GetNextShardIterator().c_str());
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"), *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
-			break;
-		}
-		UE_LOG(LogTemp, Warning, TEXT("Processing complete. Processed %d events from %d pages"), ProcessedRecordCount, ShardPageCount);
+		Aws::DynamoDBStreams::GetRecordsResponseReceivedHandler Handler = [Success, ProcessedRecordCount, ShardIterator, this, ShardPageCount, TReplayStartFrom](
+			const Aws::DynamoDBStreams::DynamoDBStreamsClient *Client,
+			const Aws::DynamoDBStreams::Model::GetRecordsRequest &GetRecordsRequest,
+			const Aws::DynamoDBStreams::Model::GetRecordsOutcome &GetRecordsOutcome,
+			const std::shared_ptr<const Aws::Client::AsyncCallerContext> &awsAsyncCallerContext
+		) mutable -> void {
+			if (GetRecordsOutcome.IsSuccess())
+			{
+				const Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records = GetRecordsOutcome.GetResult().GetRecords();
+				ProcessDynamoDBStreamRecords(Records, TReplayStartFrom);
+				ProcessedRecordCount += Records.size();
+				ShardPageCount++;
+				ShardIterator = FString(GetRecordsOutcome.GetResult().GetNextShardIterator().c_str());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"), *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
+				Success = false;
+			}
+		};
+		StreamsClient->GetRecordsAsync(Aws::DynamoDBStreams::Model::GetRecordsRequest().WithShardIterator(
+				Aws::String(TCHAR_TO_UTF8(*ShardIterator))), Handler);
+		// UE_LOG(LogTemp, Warning, TEXT("Processing complete. Processed %d events from %d pages"), ProcessedRecordCount, ShardPageCount);
 	} while (ShardIterator != "" && NumberOfEmptyShards <= NumberOfEmptyShardsLimit);
 }
 

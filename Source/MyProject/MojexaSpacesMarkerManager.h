@@ -35,6 +35,7 @@ public:
 	FString ShardIterator = "";
 	int NumberOfEmptyShards = 0;
 	int NumberOfEmptyShardsLimit = 5;
+	bool Success = true;
 private:
 	GENERATED_BODY()
 
