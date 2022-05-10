@@ -46,6 +46,13 @@ void UMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("Initialized MarkerManager Subsystem."));
 }
 
+void UMarkerManager::Shutdown()
+{
+	Super::Shutdown();
+	Aws::ShutdownAPI(Aws::SDKOptions());
+	UE_LOG(LogTemp, Warning, TEXT("Game instance shutdown complete"));
+}
+
 void UMarkerManager::DynamoDBStreamsListen()
 {
 	if (Listening)
@@ -63,7 +70,7 @@ void UMarkerManager::DynamoDBStreamsListen()
 void UMarkerManager::DynamoDBStreamsListen_()
 {
 	const Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = GetStreams(
-		FAwsString::FromAwsString(DynamoDBTableName));
+		FAwsString::FromAwsString(DynamoDBTableNameAws));
 	if (Streams.size() > 0)
 	{
 		const Aws::DynamoDBStreams::Model::Stream Stream = Streams[0];
@@ -121,7 +128,7 @@ Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMarkerManager::GetShards(const 
 void UMarkerManager::DynamoDBStreamsReplay(FString TableName)
 {
 	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams;
-	if (TableName == "") Streams = GetStreams(FAwsString::FromAwsString(DynamoDBTableName));
+	if (TableName == "") Streams = GetStreams(FAwsString::FromAwsString(DynamoDBTableNameAws));
 	else Streams = GetStreams(FAwsString::FromFString(TableName));
 	for (const auto Stream : Streams)
 	{
@@ -214,6 +221,7 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 		NumberOfEmptyShards++;
 		return;
 	}
+	
 	NumberOfEmptyShards = 0;
 	for (auto Record : Records)
 	{
@@ -223,109 +231,60 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 			Aws::Utils::Json::JsonView JsonView = JsonValue.View().GetObject("dynamodb").GetObject("NewImage");
 
 			LastEvaluatedSequenceNumber = JsonValue.View().GetObject("dynamodb").GetString("SequenceNumber");
-			const int CreationDateTime = JsonValue.View().GetObject("dynamodb").GetInteger(
-				"ApproximateCreationDateTime");
+			const int CreationDateTime = JsonValue.View().GetObject("dynamodb").GetInteger("ApproximateCreationDateTime");
 			FDateTime CreatedDateTime = FDateTime::FromUnixTimestamp(CreationDateTime);
 
-			UE_LOG(LogTemp, Warning, TEXT("INSERT: EventID=%s Time:%s Region=%s SeqNum=%s"),
-			       *FString(Record.GetEventID().c_str()),
-			       *CreatedDateTime.ToIso8601(),
-			       *FString(Record.GetAwsRegion().c_str()),
-			       *FString(LastEvaluatedSequenceNumber.c_str()));
+			// UE_LOG(LogTemp, Warning, TEXT("INSERT: EventID=%s Time:%s Region=%s SeqNum=%s"),
+			//        *FString(Record.GetEventID().c_str()),
+			//        *CreatedDateTime.ToIso8601(),
+			//        *FString(Record.GetAwsRegion().c_str()),
+			//        *FString(LastEvaluatedSequenceNumber.c_str()));
 
 			if (CreatedDateTime >= TReplayStartFrom)
 			{
-				if (JsonView.ValueExists("device_id") && JsonView.ValueExists("created_timestamp"))
+				if (JsonView.ValueExists(PartitionKeyAttributeNameAws) && JsonView.ValueExists(SortKeyAttributeNameAws))
 				{
 					// type
-					FString MarkerTypeStr;
-					if (JsonView.KeyExists("marker_type") && JsonView.ValueExists("marker_type"))
+					ELocationMarkerType MarkerType = ELocationMarkerType::Static;;
+					if (JsonView.KeyExists(MarkerTypeAttributeNameAws) && JsonView.ValueExists(MarkerTypeAttributeNameAws))
 					{
-						MarkerTypeStr = FString(JsonView.GetObject("marker_type").GetString("S").c_str());
-					}
-					else
-					{
-						MarkerTypeStr = "static";
+						FString MarkerTypeStr = FString(JsonView.GetObject(MarkerTypeAttributeNameAws).GetString("S").c_str());
+						if (MarkerTypeStr == "dynamic") MarkerType = ELocationMarkerType::Dynamic;
+						else if (MarkerTypeStr == "temporary") MarkerType = ELocationMarkerType::Temporary;
 					}
 
-					ELocationMarkerType MarkerType;
-
-					if (MarkerTypeStr == "dynamic") MarkerType = ELocationMarkerType::Dynamic;
-					else if (MarkerTypeStr == "temporary") MarkerType = ELocationMarkerType::Temporary;
-					else MarkerType = ELocationMarkerType::Static;
-
-					FString DeviceID = FString(JsonView.GetObject("device_id").GetString("S").c_str());
-					FString Timestamp = FString(JsonView.GetObject("created_timestamp").GetString("S").c_str());
-
-					const double Lon = FCString::Atod(*FString(JsonView.GetObject("longitude").GetString("N").c_str()));
-					const double Lat = FCString::Atod(*FString(JsonView.GetObject("latitude").GetString("N").c_str()));
-					const double Elev =
-						FCString::Atod(*FString(JsonView.GetObject("elevation").GetString("N").c_str()));
-
-					UE_LOG(LogTemp, Warning,
-					       TEXT("device_id: %s, created_timestamp: %s, marker_type: %s, lon: %s, lat: %s, elev: %s"),
-					       *DeviceID,
-					       *Timestamp,
-					       *MarkerTypeStr,
-					       *FString::SanitizeFloat(Lon),
-					       *FString::SanitizeFloat(Lat),
-					       *FString::SanitizeFloat(Elev));
-
-					// convert to json object
-					FJsonObject* JsonObject = new FJsonObject;
-					JsonObject->SetStringField(PartitionKeyAttributeName, DeviceID);
-					JsonObject->SetStringField(SortKeyAttributeName, Timestamp);
-					JsonObject->SetNumberField(PositionXAttributeName, Lon);
-					JsonObject->SetNumberField(PositionYAttributeName, Lat);
-					JsonObject->SetNumberField(PositionZAttributeName, Elev);
-
-					if (MarkerType == ELocationMarkerType::Dynamic)
+					FString DeviceID = FString(JsonView.GetObject(PartitionKeyAttributeNameAws).GetString("S").c_str());
+					FString TimestampStr = FString(JsonView.GetObject(SortKeyAttributeNameAws).GetString("S").c_str());
+					const FDateTime Timestamp = FDateTime::FromUnixTimestamp(FCString::Atoi(*TimestampStr));
+					const double Lon = FCString::Atod(*FString(JsonView.GetObject(PositionXAttributeNameAws).GetString("N").c_str()));
+					const double Lat = FCString::Atod(*FString(JsonView.GetObject(PositionYAttributeNameAws).GetString("N").c_str()));
+					const double Elev = FCString::Atod(*FString(JsonView.GetObject(PositionZAttributeNameAws).GetString("N").c_str()));
+					const FVector Coordinate = FVector(Lon, Lat, Elev);
+					const FLocationTs LocationTs = FLocationTs(Timestamp, Coordinate);
+					
+					ALocationMarker* Marker;
+					if (MarkerType == ELocationMarkerType::Dynamic && LocationMarkers.Contains(DeviceID))
 					{
-						JsonObject->SetStringField(MarkerTypeAttributeName, "dynamic");
-						FString DynamicMarkerDeviceID = JsonObject->GetStringField(PartitionKeyAttributeName);
-						if (!LocationMarkers.Contains(DynamicMarkerDeviceID))
+						// dynamic marker with matching device id already exists
+						Marker = *LocationMarkers.Find(DeviceID);
+						if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
 						{
-							// spawn only if AllMarkers doesn't contain the device ID
-							const ALocationMarker* CreatedMarker = CreateMarkerFromJsonObject(JsonObject);
-							if (CreatedMarker != nullptr)
-							{
-								UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"),
-								       *CreatedMarker->GetName(),
-								       *CreatedMarker->ToString());
-							}
+							// pass the new data to the marker
+							DynamicMarker->AddLocationTs(LocationTs);
+							UE_LOG(LogTemp, Warning, TEXT("Added new location %s for Dynamic marker %s"),
+								*LocationTs.ToString(),
+								*Marker->ToString());
 						}
-						else
-						{
-							// dynamic marker with matching device id already exists
-							ALocationMarker* Marker = *LocationMarkers.Find(DynamicMarkerDeviceID);
-							UE_LOG(LogTemp, Warning, TEXT("Found Dynamic Marker: %s"), *Marker->ToString());
-							if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
-							{
-								// pass the new data to the marker
-								FLocationTs Location = FLocationTs(
-									FDateTime::FromUnixTimestamp(FCString::Atoi(*Timestamp)),
-									FVector(Lon, Lat, Elev));
-								DynamicMarker->AddLocationTs(Location);
-								UE_LOG(LogTemp, Warning, TEXT("Queued new location %s for marker %s"),
-								       *Location.ToString(), *Marker->ToString());
-							}
-						}
-					}
-					else if (MarkerType == ELocationMarkerType::Temporary)
+					} else
 					{
-						JsonObject->SetStringField(MarkerTypeAttributeName, "temporary");
-						CreateMarkerFromJsonObject(JsonObject);
-					}
-					else
-					{
-						JsonObject->SetStringField(MarkerTypeAttributeName, "static");
-						CreateMarkerFromJsonObject(JsonObject);
+						// spawn dynamic marker only if AllMarkers doesn't contain the device ID
+						Marker = CreateMarker(LocationTs, MarkerType, DeviceID);
+						UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(), *Marker->ToString());
 					}
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning,
-					       TEXT("GetRecords error - Record does not have a device_id or created_timestamp"));
+					UE_LOG(LogTemp, Warning, TEXT("GetRecords error - Record does not have a device_id or created_timestamp"));
 					break;
 				}
 			}
@@ -333,17 +292,10 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 	}
 }
 
-void UMarkerManager::Shutdown()
-{
-	Super::Shutdown();
-	Aws::ShutdownAPI(Aws::SDKOptions());
-	UE_LOG(LogTemp, Warning, TEXT("Game instance shutdown complete"));
-}
-
 auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime LastKnownTimestamp) -> FVector
 {
 	Aws::DynamoDB::Model::QueryRequest Request;
-	Request.SetTableName(DynamoDBTableName);
+	Request.SetTableName(DynamoDBTableNameAws);
 	Request.SetKeyConditionExpression(PartitionKeyAttributeNameAws + " = :valueToMatch");
 
 	// Set Expression AttributeValues
@@ -381,53 +333,23 @@ auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime Las
 	return FVector::ZeroVector;
 }
 
-ALocationMarker* UMarkerManager::CreateMarkerFromJsonObject(const FJsonObject* JsonObject)
-{
-	const FDateTime Timestamp = FDateTime::FromUnixTimestamp(
-		FCString::Atoi(*JsonObject->GetStringField(SortKeyAttributeName)));
-	FString MarkerTypeStr;
-	ELocationMarkerType MarkerType = ELocationMarkerType::Static;
-
-	if (JsonObject->TryGetStringField(MarkerTypeAttributeName, MarkerTypeStr))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Marker type Field: %s"), *MarkerTypeStr);
-		if (MarkerTypeStr == FString("dynamic"))
-		{
-			MarkerType = ELocationMarkerType::Dynamic;
-		}
-	}
-	return CreateMarker(FVector(
-		                    JsonObject->GetNumberField(PositionXAttributeName),
-		                    JsonObject->GetNumberField(PositionYAttributeName),
-		                    JsonObject->GetNumberField(PositionZAttributeName)),
-	                    MarkerType,
-	                    Timestamp,
-	                    JsonObject->GetStringField(PartitionKeyAttributeName));
-}
-
-ALocationMarker* UMarkerManager::CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType)
-{
-	return CreateMarker(SpawnLocation, MarkerType, FDateTime::Now(), FString("UE"));
-}
-
-ALocationMarker* UMarkerManager::CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType,
-                                              const FDateTime Timestamp, const FString DeviceID)
+ALocationMarker* UMarkerManager::CreateMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID)
 {
 	AActor* MarkerActor;
 
 	switch (MarkerType)
 	{
-	case ELocationMarkerType::Static:
-		MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(SpawnLocation, FRotator::ZeroRotator);
-		break;
-	case ELocationMarkerType::Temporary:
-		MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(SpawnLocation, FRotator::ZeroRotator);
-		break;
-	case ELocationMarkerType::Dynamic:
-		MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(SpawnLocation, FRotator::ZeroRotator);
-		break;
-	default:
-		return nullptr;
+		case ELocationMarkerType::Static:
+			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(LocationTs.Coordinate, FRotator::ZeroRotator);
+			break;
+		case ELocationMarkerType::Temporary:
+			MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(LocationTs.Coordinate, FRotator::ZeroRotator);
+			break;
+		case ELocationMarkerType::Dynamic:
+			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(LocationTs.Coordinate, FRotator::ZeroRotator);
+			break;
+		default:
+			return nullptr;
 	}
 
 	if (MarkerActor != nullptr)
@@ -435,12 +357,11 @@ ALocationMarker* UMarkerManager::CreateMarker(const FVector SpawnLocation, const
 		ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor);
 		if (Marker != nullptr)
 		{
-			Marker->LocationTs.Coordinate = SpawnLocation;
-			Marker->LocationTs.Timestamp = Timestamp;
+			Marker->LocationTs = LocationTs;
 			Marker->DeviceID = DeviceID;
 
 			UE_LOG(LogTemp, Warning, TEXT("Created %s - %s"), *Marker->GetName(), *Marker->ToString());
-			UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToJsonString());
+			// UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToJsonString());
 		}
 
 		LocationMarkers.Add(DeviceID, Marker);
@@ -454,7 +375,7 @@ ALocationMarker* UMarkerManager::CreateMarker(const FVector SpawnLocation, const
 bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 {
 	Aws::DynamoDB::Model::PutItemRequest Request;
-	Request.SetTableName(DynamoDBTableName);
+	Request.SetTableName(DynamoDBTableNameAws);
 
 	Aws::DynamoDB::Model::AttributeValue PartitionKeyValue;
 	PartitionKeyValue.SetS(Aws::String(TCHAR_TO_UTF8(*Marker->DeviceID)));
@@ -486,7 +407,7 @@ bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 void UMarkerManager::GetAllMarkersFromDynamoDB()
 {
 	Aws::DynamoDB::Model::ScanRequest Request;
-	Request.SetTableName(DynamoDBTableName);
+	Request.SetTableName(DynamoDBTableNameAws);
 	Aws::DynamoDB::Model::ScanOutcome Outcome = DynamoClient->Scan(Request);
 	if (Outcome.IsSuccess())
 	{
@@ -511,41 +432,35 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 				if (MarkerTypeStr.Equals(FString("dynamic"))) MarkerType = ELocationMarkerType::Dynamic;
 				else MarkerType = ELocationMarkerType::Static;
 			}
-
-			float lon, lat, elev;
-			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionXAttributeNameAws).GetN().c_str()), lon);
-			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionYAttributeNameAws).GetN().c_str()), lat);
-			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionZAttributeNameAws).GetN().c_str()), elev);
-
-			// convert to json object
-			FJsonObject* JsonObject = new FJsonObject;
-			JsonObject->SetStringField(PartitionKeyAttributeName, DeviceID);
-			JsonObject->SetStringField(SortKeyAttributeName, FString(Pairs.at(SortKeyAttributeNameAws).GetS().c_str()));
-			JsonObject->SetNumberField(PositionXAttributeName, lon);
-			JsonObject->SetNumberField(PositionYAttributeName, lat);
-			JsonObject->SetNumberField(PositionZAttributeName, elev);
-
-			if (MarkerType == ELocationMarkerType::Dynamic)
+			
+			Aws::DynamoDB::Model::AttributeValue TimestampValue = Pairs.at(SortKeyAttributeNameAws);
+			FDateTime Timestamp = FDateTime::FromUnixTimestamp(std::atoi(TimestampValue.GetS().c_str()));
+			
+			float Lon, Lat, Elev;
+			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionXAttributeNameAws).GetN().c_str()), Lon);
+			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionYAttributeNameAws).GetN().c_str()), Lat);
+			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionZAttributeNameAws).GetN().c_str()), Elev);
+			const FVector Coordinate = FVector(Lon, Lat, Elev);
+			const FLocationTs LocationTs = FLocationTs(Timestamp, Coordinate);
+					
+			ALocationMarker* Marker;
+			if (MarkerType == ELocationMarkerType::Dynamic && LocationMarkers.Contains(DeviceID))
 			{
-				DynamicMarkers.Add(DeviceID, JsonObject);
-				JsonObject->SetStringField(MarkerTypeAttributeName, "dynamic");
-			}
-			else
-			{
-				CreateMarkerFromJsonObject(JsonObject);
-			}
-		}
-		for (const auto DMarker : DynamicMarkers)
-		{
-			// spawn only if AllMarkers doesn't contain the device ID
-			if (!LocationMarkers.Contains(DMarker.Value->GetStringField(PartitionKeyAttributeName)))
-			{
-				ALocationMarker* CreatedMarker = CreateMarkerFromJsonObject(DMarker.Value);
-				if (CreatedMarker != nullptr)
+				// dynamic marker with matching device id already exists
+				Marker = *LocationMarkers.Find(DeviceID);
+				if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *CreatedMarker->GetName(),
-					       *CreatedMarker->ToString());
+					// pass the new data to the marker
+					DynamicMarker->AddLocationTs(LocationTs);
+					UE_LOG(LogTemp, Warning, TEXT("Added new location %s for Dynamic marker %s"),
+						*LocationTs.ToString(),
+						*Marker->ToString());
 				}
+			} else
+			{
+				// spawn dynamic marker only if AllMarkers doesn't contain the device ID
+				Marker = CreateMarker(LocationTs, MarkerType, DeviceID);
+				UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(), *Marker->ToString());
 			}
 		}
 	}
@@ -586,7 +501,7 @@ auto UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDat
 	AttributeValues.emplace("created_timestamp", SortKey);
 
 	const Aws::DynamoDB::Model::DeleteItemRequest Request = Aws::DynamoDB::Model::DeleteItemRequest()
-	                                                        .WithTableName(DynamoDBTableName)
+	                                                        .WithTableName(DynamoDBTableNameAws)
 	                                                        .WithKey(AttributeValues);
 	const Aws::DynamoDB::Model::DeleteItemOutcome Outcome = DynamoClient->DeleteItem(Request);
 	return Outcome.IsSuccess();

@@ -14,10 +14,6 @@
 #include "TemporaryMarker.h"
 
 // DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
-
-//////////////////////////////////////////////////////////////////////////
-// AMyProjectCharacter
-
 AMyProjectCharacter::AMyProjectCharacter()
 {
 	// Set size for collision capsule
@@ -97,7 +93,7 @@ void AMyProjectCharacter::CreateLocationMarker(const ELocationMarkerType MarkerT
 			}
 			else if (MarkerManager != nullptr)
 			{
-				Marker = MarkerManager->CreateMarker(OutHit.ImpactPoint, MarkerType);
+				Marker = MarkerManager->CreateMarker(FLocationTs(OutHit.ImpactPoint), MarkerType, "UE");
 				MarkerManager->CreateMarkerInDB(Marker);
 			}
 		}
@@ -125,7 +121,7 @@ void AMyProjectCharacter::DynamoDBStreamsReplay()
 {
 	if (MarkerManager != nullptr)
 	{
-		MarkerManager->DynamoDBStreamsReplay(DynamoDBTableNameF);
+		MarkerManager->DynamoDBStreamsReplay(DynamoDBTableName);
 	}
 }
 

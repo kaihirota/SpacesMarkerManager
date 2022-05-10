@@ -55,6 +55,12 @@ struct FLocationTs
 	{
 	}
 
+	FLocationTs(const FVector Location)
+	{
+		Coordinate = Location;
+		Timestamp = FDateTime::Now();
+	}
+
 	FLocationTs(const FDateTime DateTime, const FVector Location)
 	{
 		Coordinate = Location;

@@ -55,11 +55,7 @@ public:
 	* @returns Marker [ALocationMarker] 
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
-	ALocationMarker* CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType,
-								  const FDateTime Timestamp, const FString DeviceID);
-	ALocationMarker* CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType);
-
-	ALocationMarker* CreateMarkerFromJsonObject(const FJsonObject* JsonObject);
+	ALocationMarker* CreateMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID);
 
 	/****************   DynamoDB   ******************/
 
