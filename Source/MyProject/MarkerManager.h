@@ -126,29 +126,46 @@ public:
 	void DynamoDBStreamsReplay(FString TableName);
 
 	/**
+	 * @param TableName
+	 * @returns List of stream ARNs for all the associated streams.
+	 **/
+	UFUNCTION(BlueprintCallable, Category="Spaces")
+	TArray<FAwsString> GetStreams(const FAwsString TableName);
+
+	/**
 	* Do a "replay" of the inserts in the last 24 hours for a single stream.
 	* Start reading at the last (untrimmed) stream record,
 	* which is the oldest record in the shard.
 	* In DynamoDB Streams, there is a 24 hour limit on data retention.
 	* Stream records whose age exceeds this limit are subject to
 	* removal (trimming) from the stream.
-	*/
-	void ScanStream(const Aws::DynamoDBStreams::Model::Stream& Stream,
-	                Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, FDateTime TReplayStartFrom);
-	
-	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams(const FAwsString TableName);
-	Aws::Vector<Aws::DynamoDBStreams::Model::Shard> GetShards(const FAwsString StreamArn) const;
+	* @param StreamArn
+	* @param TReplayStartFrom Oldest threshold timestamp from which to start the replay from.
+\	**/
+	UFUNCTION(BlueprintCallable, Category="Spaces")
+	void ScanStream(const FAwsString StreamArn, const FDateTime TReplayStartFrom);
+
+	/**
+	 * Given a stream ARN, get a list of ID for the shards in the stream.
+	 * @param StreamArn
+	 **/
+	UFUNCTION(BlueprintCallable, Category="Spaces")
+	TArray<FAwsString> GetShards(const FAwsString StreamArn) const;
 
 	/**
 	* Given a shard, create shard iterator with the specified ShardIteratorType
 	* and use that to iterate through the shard.
 	* @param StreamArn
-	* @param Shard
+	* @param ShardId
 	* @param ShardIteratorType
 	* @param TReplayStartFrom For TRIM_HORIZON shard iterator, this can be specified as a filter to skip the oldest records.
 	*/
-	void IterateShard(const FAwsString StreamArn, const Aws::DynamoDBStreams::Model::Shard Shard,
-	                  const Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType, const FDateTime TReplayStartFrom);
+	UFUNCTION(BlueprintCallable, Category="Spaces")
+	void IterateShard(const FAwsString StreamArn,
+					  const FAwsString ShardId,
+	                  const FDynamoDBStreamShardIteratorType ShardIteratorType,
+	                  const FDateTime TReplayStartFrom);
+
 	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records,
 	                                  FDateTime TReplayStartFrom);
 protected:

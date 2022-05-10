@@ -2,7 +2,26 @@
 
 #include "CoreMinimal.h"
 #include "Settings.h"
+#include "aws/dynamodbstreams/model/ShardIteratorType.h"
 #include "LocationTs.generated.h"
+
+USTRUCT(BlueprintType)
+struct FDynamoDBStreamShardIteratorType
+{
+	GENERATED_BODY()
+
+	FDynamoDBStreamShardIteratorType()
+	{
+		Value = Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON;
+	}
+
+	FDynamoDBStreamShardIteratorType(const Aws::DynamoDBStreams::Model::ShardIteratorType Type)
+	{
+		Value = Type;
+	}
+
+	Aws::DynamoDBStreams::Model::ShardIteratorType Value;
+};
 
 USTRUCT(BlueprintType)
 struct FAwsString

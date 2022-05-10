@@ -69,99 +69,94 @@ void UMarkerManager::DynamoDBStreamsListen()
 
 void UMarkerManager::DynamoDBStreamsListen_()
 {
-	const Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = GetStreams(
-		FAwsString::FromAwsString(DynamoDBTableNameAws));
-	if (Streams.size() > 0)
+	const TArray<FAwsString> Streams = GetStreams(
+		FAwsString::FromFString(*DynamoDBTableName));
+	if (Streams.Num() > 0)
 	{
-		const Aws::DynamoDBStreams::Model::Stream Stream = Streams[0];
-		const Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = GetShards(
-			FAwsString::FromAwsString(Stream.GetStreamArn()));
-		if (Shards.size() > 0)
+		const FAwsString StreamArn = Streams[0];
+		const TArray<FAwsString> Shards = GetShards(StreamArn);
+		if (Shards.Num() > 0)
 		{
-			IterateShard(FAwsString::FromAwsString(Stream.GetStreamArn()), Shards[0],
+			IterateShard(StreamArn, Shards[0],
 			             Aws::DynamoDBStreams::Model::ShardIteratorType::LATEST, NULL);
 		}
 	}
 }
 
-Aws::Vector<Aws::DynamoDBStreams::Model::Stream> UMarkerManager::GetStreams(const FAwsString TableName)
+TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fetching DynamoDB Streams for table: %s"), *TableName.Fstring);
 	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome = StreamsClient->ListStreams(
 		Aws::DynamoDBStreams::Model::ListStreamsRequest().WithTableName(TableName.AwsString));
-	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams;
+	
+	TArray<FAwsString> StreamArns;
 	if (ListStreamsOutcome.IsSuccess())
 	{
-		const Aws::DynamoDBStreams::Model::ListStreamsResult ListStreamsResult = ListStreamsOutcome.GetResult();
-		Streams = ListStreamsResult.GetStreams();
-		UE_LOG(LogTemp, Warning, TEXT("Found %d DynamoDB Streams for table %s"), Streams.size(), *TableName.Fstring);
+		const Aws::DynamoDBStreams::Model::ListStreamsResult ListStreamsResult = ListStreamsOutcome.GetResultWithOwnership();
+		Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = ListStreamsResult.GetStreams();
+		for (Aws::DynamoDBStreams::Model::Stream Stream : Streams)
+		{
+			StreamArns.Add(FAwsString::FromAwsString(Stream.GetStreamArn()));
+		} 
 		LastEvaluatedStreamArn = ListStreamsResult.GetLastEvaluatedStreamArn();
+		UE_LOG(LogTemp, Warning, TEXT("Found %d DynamoDB Streams for table %s"), Streams.size(), *TableName.Fstring);
+	} else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ListStreams error: %s"), *FString(ListStreamsOutcome.GetError().GetMessage().c_str()));
 	}
-	UE_LOG(LogTemp, Warning, TEXT("ListStreams error: %s"),
-	       *FString(ListStreamsOutcome.GetError().GetMessage().c_str()));
-	return Streams;
+	return StreamArns;
 }
 
 
-Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMarkerManager::GetShards(const FAwsString StreamArn) const
+TArray<FAwsString> UMarkerManager::GetShards(const FAwsString StreamArn) const
 {
 	UE_LOG(LogTemp, Warning, TEXT("Stream ARN %s"), *StreamArn.Fstring);
 	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome = StreamsClient->DescribeStream(
 		Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(StreamArn.AwsString));
-	Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards;
+
+	TArray<FAwsString> ShardIds;
 	if (DescribeStreamOutcome.IsSuccess())
 	{
-		const Aws::DynamoDBStreams::Model::DescribeStreamResult DescribeStreamResult = DescribeStreamOutcome.
-			GetResultWithOwnership();
-		Shards = DescribeStreamResult.GetStreamDescription().
-		                              GetShards();
+		const Aws::DynamoDBStreams::Model::DescribeStreamResult DescribeStreamResult = DescribeStreamOutcome.GetResultWithOwnership();
+		Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = DescribeStreamResult.GetStreamDescription().GetShards();
+		for (Aws::DynamoDBStreams::Model::Shard Shard : Shards)
+		{
+			ShardIds.Add(FAwsString::FromAwsString(Shard.GetShardId()));
+		} 
 		UE_LOG(LogTemp, Warning, TEXT("Found %d shards for Stream ARN %s"), Shards.size(), *StreamArn.Fstring);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("DescribeStreams error: %s"),
-		       *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
+		UE_LOG(LogTemp, Warning, TEXT("DescribeStreams error: %s"), *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
 	}
-	return Shards;
+	return ShardIds;
 }
 
 void UMarkerManager::DynamoDBStreamsReplay(FString TableName)
 {
-	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams;
+	TArray<FAwsString> Streams;
 	if (TableName == "") Streams = GetStreams(FAwsString::FromAwsString(DynamoDBTableNameAws));
 	else Streams = GetStreams(FAwsString::FromFString(TableName));
 	for (const auto Stream : Streams)
 	{
-		ScanStream(Stream, Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON,
-		           FDateTime::Now() - FTimespan::FromHours(24.0));
+		ScanStream(Stream, FDateTime::Now() - FTimespan::FromHours(24.0));
 	}
 }
 
-void UMarkerManager::ScanStream(
-	const Aws::DynamoDBStreams::Model::Stream& Stream,
-	const Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType,
-	const FDateTime TReplayStartFrom)
+void UMarkerManager::ScanStream(const FAwsString StreamArn, const FDateTime TReplayStartFrom)
 {
-	const Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = GetShards(
-		FAwsString::FromAwsString(Stream.GetStreamArn()));
+	const TArray<FAwsString> Shards = GetShards(StreamArn);
 	for (auto Shard : Shards)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Shard %s"), *FString(Shard.GetShardId().c_str()));
-		if (Shard.ShardIdHasBeenSet())
-		{
-			IterateShard(FAwsString::FromAwsString(Stream.GetStreamArn()), Shard, ShardIteratorType, TReplayStartFrom);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Error: Shard ID not set"));
-		}
+		UE_LOG(LogTemp, Warning, TEXT("Shard %s"), *Shard.Fstring);
+		IterateShard(StreamArn, Shard, Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON, TReplayStartFrom);
 	}
 }
 
 void UMarkerManager::IterateShard(
 	const FAwsString StreamArn,
-	const Aws::DynamoDBStreams::Model::Shard Shard,
-	const Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType,
+	const FAwsString ShardId,
+	const FDynamoDBStreamShardIteratorType ShardIteratorType,
 	const FDateTime TReplayStartFrom)
 {
 	if (ShardIterator == "")
@@ -170,8 +165,8 @@ void UMarkerManager::IterateShard(
 		Aws::DynamoDBStreams::Model::GetShardIteratorOutcome GetShardIteratorOutcome = StreamsClient->GetShardIterator(
 			Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
 			.WithStreamArn(StreamArn.AwsString)
-			.WithShardId(Shard.GetShardId())
-			.WithShardIteratorType(ShardIteratorType));
+			.WithShardId(ShardId.AwsString)
+			.WithShardIteratorType(ShardIteratorType.Value));
 		if (GetShardIteratorOutcome.IsSuccess())
 		{
 			ShardIterator = FString(GetShardIteratorOutcome.GetResult().GetShardIterator().c_str());
@@ -233,12 +228,6 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 			LastEvaluatedSequenceNumber = JsonValue.View().GetObject("dynamodb").GetString("SequenceNumber");
 			const int CreationDateTime = JsonValue.View().GetObject("dynamodb").GetInteger("ApproximateCreationDateTime");
 			FDateTime CreatedDateTime = FDateTime::FromUnixTimestamp(CreationDateTime);
-
-			// UE_LOG(LogTemp, Warning, TEXT("INSERT: EventID=%s Time:%s Region=%s SeqNum=%s"),
-			//        *FString(Record.GetEventID().c_str()),
-			//        *CreatedDateTime.ToIso8601(),
-			//        *FString(Record.GetAwsRegion().c_str()),
-			//        *FString(LastEvaluatedSequenceNumber.c_str()));
 
 			if (CreatedDateTime >= TReplayStartFrom)
 			{
