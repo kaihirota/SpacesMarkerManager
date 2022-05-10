@@ -20,6 +20,8 @@ inline FString AwsStringToFString(const Aws::String& String)
 	return FString(String.c_str());
 }
 
+static const FString DynamoDBTableNameF = AwsStringToFString(DynamoDBTableName);
+
 // DynamoDB attribute names
 static const FString PartitionKeyAttributeName = "device_id";
 static const FString SortKeyAttributeName = "created_timestamp";

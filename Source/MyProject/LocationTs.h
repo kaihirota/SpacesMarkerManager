@@ -4,6 +4,38 @@
 #include "Settings.h"
 #include "LocationTs.generated.h"
 
+USTRUCT(BlueprintType)
+struct FAwsString
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category="Spaces")
+	FString Fstring;
+
+	Aws::String AwsString;
+
+	FAwsString()
+	{
+		
+	}
+
+	static FAwsString FromAwsString(Aws::String AwsStr)
+	{
+		FAwsString Str;
+		Str.AwsString = AwsStr;
+		Str.Fstring = *FString(AwsStr.c_str());
+		return Str;
+	}
+
+	static FAwsString FromFString(FString FInputStr)
+	{
+		FAwsString Str;
+		Str.Fstring = FInputStr;
+		Str.AwsString = Aws::String(TCHAR_TO_UTF8(*FInputStr));
+		return Str;
+	}
+};
+
 
 USTRUCT(BlueprintType)
 struct FLocationTs
@@ -21,8 +53,12 @@ struct FLocationTs
 
 	FLocationTs()
 	{
-		Coordinate = FVector::ZeroVector;
-		Timestamp = FDateTime::Now();
+	}
+
+	FLocationTs(const FDateTime DateTime, const FVector Location)
+	{
+		Coordinate = Location;
+		Timestamp = DateTime;
 	}
 	
 	friend bool operator < (const FLocationTs& x, const FLocationTs& y)
@@ -36,13 +72,5 @@ struct FLocationTs
 		Args.Add(FStringFormatArg(Coordinate.ToString()));
 		Args.Add(FStringFormatArg(Timestamp.ToIso8601()));
 		return FString::Format(TEXT("({0}, '{1}')"), Args);
-	}
-
-	static FLocationTs FromLocationTimestamp(const FDateTime Timestamp, const FVector Coordinate)
-	{
-		FLocationTs Location;
-		Location.Timestamp = Timestamp;
-		Location.Coordinate = Coordinate;
-		return Location;
 	}
 };

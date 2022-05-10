@@ -49,18 +49,43 @@ void UMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("Game instance initialized"));
 }
 
-Aws::Vector<Aws::DynamoDBStreams::Model::Stream> UMarkerManager::GetStreams(const Aws::String TableName)
+void UMarkerManager::DynamoDBStreamsListen()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Fetching DynamoDB Streams for table: %s"), *FString(TableName.c_str()));
+	if (Listening)
+	{
+		Super::TimerManager->ClearTimer(TimerHandle);
+	} else
+	{
+		Super::TimerManager->SetTimer(TimerHandle, this, &UMarkerManager::DynamoDBStreamsListen_, PollingInterval, true, 0.0f);
+	}
+	Listening = !Listening;
+}
+
+void UMarkerManager::DynamoDBStreamsListen_()
+{
+	const Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams = GetStreams(FAwsString::FromAwsString(DynamoDBTableName));
+	if (Streams.size() > 0)
+	{
+		const Aws::DynamoDBStreams::Model::Stream Stream = Streams[0];
+		const Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = GetShards(FAwsString::FromAwsString(Stream.GetStreamArn()));
+		if (Shards.size() > 0)
+		{
+			IterateShard(FAwsString::FromAwsString(Stream.GetStreamArn()), Shards[0], Aws::DynamoDBStreams::Model::ShardIteratorType::LATEST, NULL);
+		}
+	}
+}
+
+Aws::Vector<Aws::DynamoDBStreams::Model::Stream> UMarkerManager::GetStreams(const FAwsString TableName)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Fetching DynamoDB Streams for table: %s"), *TableName.Fstring);
 	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome = StreamsClient->ListStreams(
-		Aws::DynamoDBStreams::Model::ListStreamsRequest().WithTableName(TableName));
+		Aws::DynamoDBStreams::Model::ListStreamsRequest().WithTableName(TableName.AwsString));
 	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams;
 	if (ListStreamsOutcome.IsSuccess())
 	{
 		const Aws::DynamoDBStreams::Model::ListStreamsResult ListStreamsResult = ListStreamsOutcome.GetResult();
 		Streams = ListStreamsResult.GetStreams();
-		UE_LOG(LogTemp, Warning, TEXT("Found %d DynamoDB Streams for table %s"), Streams.size(),
-				   *FString(TableName.c_str()));
+		UE_LOG(LogTemp, Warning, TEXT("Found %d DynamoDB Streams for table %s"), Streams.size(), *TableName.Fstring);
 		LastEvaluatedStreamArn = ListStreamsResult.GetLastEvaluatedStreamArn();
 	}
 	UE_LOG(LogTemp, Warning, TEXT("ListStreams error: %s"),
@@ -68,11 +93,13 @@ Aws::Vector<Aws::DynamoDBStreams::Model::Stream> UMarkerManager::GetStreams(cons
 	return Streams;
 }
 
-Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMarkerManager::GetShards(const Aws::String StreamArn) const
+
+
+Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMarkerManager::GetShards(const FAwsString StreamArn) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("Stream ARN %s"), *FString(StreamArn.c_str()));
+	UE_LOG(LogTemp, Warning, TEXT("Stream ARN %s"), *StreamArn.Fstring);
 	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome = StreamsClient->DescribeStream(
-		Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(StreamArn));
+		Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(StreamArn.AwsString));
 	Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards;
 	if (DescribeStreamOutcome.IsSuccess())
 	{
@@ -80,11 +107,24 @@ Aws::Vector<Aws::DynamoDBStreams::Model::Shard> UMarkerManager::GetShards(const 
 			GetResultWithOwnership();
 		Shards = DescribeStreamResult.GetStreamDescription().
 			GetShards();
-		UE_LOG(LogTemp, Warning, TEXT("Found %d shards for Stream ARN %s"), Shards.size(), *FString(StreamArn.c_str()));
+		UE_LOG(LogTemp, Warning, TEXT("Found %d shards for Stream ARN %s"), Shards.size(), *StreamArn.Fstring);
+	} else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("DescribeStreams error: %s"),
+		       *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
 	}
-	UE_LOG(LogTemp, Warning, TEXT("DescribeStreams error: %s"),
-	       *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
 	return Shards;
+}
+
+void UMarkerManager::DynamoDBStreamsReplay(FString TableName)
+{
+	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> Streams;
+	if (TableName == "") Streams = GetStreams(FAwsString::FromAwsString(DynamoDBTableName));
+	else Streams = GetStreams(FAwsString::FromFString(TableName));
+	for (const auto Stream : Streams)
+	{
+		ScanStream(Stream, Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON, FDateTime::Now() - FTimespan::FromHours(24.0));
+	}
 }
 
 void UMarkerManager::ScanStream(
@@ -92,13 +132,13 @@ void UMarkerManager::ScanStream(
 	const Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType,
 	const FDateTime TReplayStartFrom)
 {
-	const Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = GetShards(Stream.GetStreamArn());
+	const Aws::Vector<Aws::DynamoDBStreams::Model::Shard> Shards = GetShards(FAwsString::FromAwsString(Stream.GetStreamArn()));
 	for (auto Shard : Shards)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Shard %s"), *FString(Shard.GetShardId().c_str()));
 		if (Shard.ShardIdHasBeenSet())
 		{
-			IterateShard(Stream.GetStreamArn(), Shard, ShardIteratorType, TReplayStartFrom);
+			IterateShard(FAwsString::FromAwsString(Stream.GetStreamArn()), Shard, ShardIteratorType, TReplayStartFrom);
 		} else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Error: Shard ID not set"));
@@ -107,7 +147,7 @@ void UMarkerManager::ScanStream(
 }
 
 void UMarkerManager::IterateShard(
-	const Aws::String StreamArn,
+	const FAwsString StreamArn,
 	const Aws::DynamoDBStreams::Model::Shard Shard,
 	const Aws::DynamoDBStreams::Model::ShardIteratorType ShardIteratorType,
 	const FDateTime TReplayStartFrom)
@@ -117,7 +157,7 @@ void UMarkerManager::IterateShard(
 		UE_LOG(LogTemp, Warning, TEXT("ShardIterator not created. Creating it now."));
 		Aws::DynamoDBStreams::Model::GetShardIteratorOutcome GetShardIteratorOutcome = StreamsClient->GetShardIterator(
 			Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
-			.WithStreamArn(StreamArn)
+			.WithStreamArn(StreamArn.AwsString)
 			.WithShardId(Shard.GetShardId())
 			.WithShardIteratorType(ShardIteratorType));
 		if (GetShardIteratorOutcome.IsSuccess())
@@ -252,7 +292,7 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 							if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
 							{
 								// pass the new data to the marker
-								FLocationTs Location = FLocationTs::FromLocationTimestamp(
+								FLocationTs Location = FLocationTs(
 										FDateTime::FromUnixTimestamp(FCString::Atoi(*Timestamp)),
 										FVector(Lon, Lat, Elev));
 								DynamicMarker->AddLocationTs(Location);
@@ -506,61 +546,6 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 	}
 }
 
-void UMarkerManager::OnGetMarkersResponse(FHttpRequestPtr Request, FHttpResponsePtr Response,
-                                                      bool bWasSuccessful)
-{
-	if (Response->GetResponseCode() == 200 && bWasSuccessful)
-	{
-		TSharedPtr<FJsonObject> JsonObjArr;
-		const FString ResponseBody = Response->GetContentAsString();
-		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseBody);
-		if (FJsonSerializer::Deserialize(Reader, JsonObjArr))
-		{
-			TArray<TSharedPtr<FJsonValue>> MarkerArray = JsonObjArr->GetArrayField("data");
-			UE_LOG(LogTemp, Warning, TEXT("Fetch Success: %d items"), MarkerArray.Num());
-			// for dynamic markers, spawn the last location
-			TMap<FString, FJsonObject*> DynamicMarkers;
-
-			for (const TSharedPtr<FJsonValue>& MarkerValue : MarkerArray)
-			{
-				// how to determine if new marker should be spawned, or not?
-				// no marker with same device id, time, and coordinates can co exist
-	  			FJsonObject* JsonObject = MarkerValue->AsObject().Get();
-				if (JsonObject->HasField(MarkerTypeAttributeName))
-				{
-					FString MarkerType = JsonObject->GetStringField(MarkerTypeAttributeName); // == FString("dynamic")
-					FString DeviceID = JsonObject->GetStringField(PartitionKeyAttributeName);
-
-					FString TimestampStr = JsonObject->GetStringField(SortKeyAttributeName);
-					FDateTime Timestamp = FDateTime::FromUnixTimestamp(FCString::Atoi(*TimestampStr));
-					UE_LOG(LogTemp, Log, TEXT("Timestamp: %s"), *Timestamp.ToString());
-					DynamicMarkers.Add(DeviceID, JsonObject);
-				}
-				else
-				{
-					const ALocationMarker* Marker = CreateMarkerFromJsonObject(JsonObject);
-					if (Marker != nullptr) UE_LOG(LogTemp, Log, TEXT("Created Marker: %s %s"), *Marker->GetName(),
-					                              *Marker->ToString())					;
-				}
-			}
-
-			for (const auto DMarker : DynamicMarkers)
-			{
-				const ALocationMarker* Marker = CreateMarkerFromJsonObject(DMarker.Value);
-				if (Marker != nullptr)
-				{
-					UE_LOG(LogTemp, Log, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(),
-					       *Marker->ToString());
-				}
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Error %d: %s"), Response->GetResponseCode(), *Response->GetContentAsString());
-	}
-}
-
 void UMarkerManager::DeleteSelectedMarkers(const bool DeleteFromDB)
 {
 	for (auto It = LocationMarkers.CreateIterator(); It; ++It)
@@ -595,19 +580,4 @@ auto UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDat
 															.WithKey(AttributeValues);
 	const Aws::DynamoDB::Model::DeleteItemOutcome Outcome  = DynamoClient->DeleteItem(Request);
 	return Outcome.IsSuccess();
-}
-
-void UMarkerManager::OnDeleteMarkersResponse(FHttpRequestPtr Request, const FHttpResponsePtr Response,
-                                                         const bool bWasSuccessful)
-{
-	if (Response->GetResponseCode() != 200 || !bWasSuccessful)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Could not delete marker - HTTP %d: %s"), Response->GetResponseCode(),
-		       *Response->GetContentAsString());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SUCCESS: Delete marker - HTTP %d: %s"), Response->GetResponseCode(),
-		       *Response->GetContentAsString());
-	}
 }

@@ -58,9 +58,7 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	UMarkerManager* MarkerManager;
 
-	FTimerHandle TimerHandle;
 
-	bool Listening = false;
 
 protected:
 	void CreateStaticMarker();
@@ -71,12 +69,12 @@ protected:
 	/** DynamoDB **/
 	void GetMarkers();
 	void RemoveSelectedMarkers();
+	void DynamoDBStreamsReplay();
+	void DynamoDBStreamsListen();
 
 	/** DynamoDB Streams **/
 	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams() const;
-	void DynamoDBStreamsReplay();
-	void DynamoDBStreamsListen();
-	void DynamoDBStreamsListen_();
+	
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);
