@@ -48,9 +48,8 @@ public:
 
 	/**
 	* Spawn a marker with the provided parameters and save a references in LocationMarkers
-	* @param SpawnLocation
+	* @param LocationTs
 	* @param MarkerType
-	* @param Timestamp
 	* @param DeviceID
 	* @returns Marker [ALocationMarker] 
 	**/
