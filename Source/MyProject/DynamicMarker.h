@@ -36,11 +36,10 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	FString ToString() const;
+	FString ToJsonString() const;
 
 	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void AddLocationTs(const FLocationTs Location);
-	
-	FString ToJsonString() const;
 	
 	TSharedRef<FJsonObject> ToJsonObject() const;
 };
