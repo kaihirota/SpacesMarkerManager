@@ -24,6 +24,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	float DefaultRadius = 200.0f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	bool Selected;
+	
 	/* Static Mesh Component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	UStaticMeshComponent* StaticMeshComp;
@@ -45,9 +48,6 @@ public:
 	/* Location and timestamp */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	FLocationTs LocationTs;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
-	bool Selected;
 
 	/**
 	* Select or unselect this marker
