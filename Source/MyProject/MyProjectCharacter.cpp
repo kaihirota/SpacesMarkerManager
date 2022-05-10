@@ -50,46 +50,6 @@ void AMyProjectCharacter::BeginPlay()
 	MarkerManager = GetWorld()->GetGameInstance<UMarkerManager>();
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
-
-void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
-{
-	// set up gameplay key bindings
-	check(PlayerInputComponent);
-
-	// Bind jump events
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
-
-	// Bind fire event
-	PlayerInputComponent->BindAction("CreateLocationMarker", IE_Pressed, this,
-	                                 &AMyProjectCharacter::CreateStaticMarker);
-	PlayerInputComponent->BindAction("CreateTemporaryMarker", IE_Pressed, this,
-	                                 &AMyProjectCharacter::CreateTemporaryMarker);
-
-	// Enable touchscreen input
-	EnableTouchscreenMovement(PlayerInputComponent);
-
-	PlayerInputComponent->BindAction("GetMarkers", IE_Pressed, this, &AMyProjectCharacter::GetMarkers);
-	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this, &AMyProjectCharacter::RemoveSelectedMarkers);
-
-	PlayerInputComponent->BindAction("DynamoDBStreamsReplay", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsReplay);
-	PlayerInputComponent->BindAction("DynamoDBStreamsListen", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsListen);
-
-	// Bind movement events
-	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
-	PlayerInputComponent->BindAxis("MoveRight", this, &AMyProjectCharacter::MoveRight);
-
-	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
-	// "turn" handles devices that provide an absolute delta, such as a mouse.
-	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("TurnRate", this, &AMyProjectCharacter::TurnAtRate);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
-	PlayerInputComponent->BindAxis("LookUpRate", this, &AMyProjectCharacter::LookUpAtRate);
-}
-
 void AMyProjectCharacter::CreateStaticMarker()
 {
 	CreateLocationMarker(ELocationMarkerType::Static);
@@ -175,6 +135,46 @@ void AMyProjectCharacter::DynamoDBStreamsListen()
 	{
 		MarkerManager->DynamoDBStreamsListen();
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Input
+
+void AMyProjectCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
+{
+	// set up gameplay key bindings
+	check(PlayerInputComponent);
+
+	// Bind jump events
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+
+	// Bind fire event
+	PlayerInputComponent->BindAction("CreateLocationMarker", IE_Pressed, this,
+	                                 &AMyProjectCharacter::CreateStaticMarker);
+	PlayerInputComponent->BindAction("CreateTemporaryMarker", IE_Pressed, this,
+	                                 &AMyProjectCharacter::CreateTemporaryMarker);
+
+	// Enable touchscreen input
+	EnableTouchscreenMovement(PlayerInputComponent);
+
+	PlayerInputComponent->BindAction("GetMarkers", IE_Pressed, this, &AMyProjectCharacter::GetMarkers);
+	PlayerInputComponent->BindAction("RemoveSelectedMarkers", IE_Pressed, this, &AMyProjectCharacter::RemoveSelectedMarkers);
+
+	PlayerInputComponent->BindAction("DynamoDBStreamsReplay", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsReplay);
+	PlayerInputComponent->BindAction("DynamoDBStreamsListen", IE_Pressed, this, &AMyProjectCharacter::DynamoDBStreamsListen);
+
+	// Bind movement events
+	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
+	PlayerInputComponent->BindAxis("MoveRight", this, &AMyProjectCharacter::MoveRight);
+
+	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
+	// "turn" handles devices that provide an absolute delta, such as a mouse.
+	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
+	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
+	PlayerInputComponent->BindAxis("TurnRate", this, &AMyProjectCharacter::TurnAtRate);
+	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAxis("LookUpRate", this, &AMyProjectCharacter::LookUpAtRate);
 }
 
 void AMyProjectCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location)

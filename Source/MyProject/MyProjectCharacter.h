@@ -39,10 +39,6 @@ class AMyProjectCharacter : public ACharacter
 public:
 	AMyProjectCharacter();
 
-protected:
-	virtual void BeginPlay();
-
-public:
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
@@ -55,15 +51,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category=Marker)
 	TSubclassOf<class ALocationMarker> MarkerClass;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UMarkerManager* MarkerManager;
 
-
-
 protected:
+	virtual void BeginPlay();
 	void CreateStaticMarker();
 	void CreateTemporaryMarker();
-	/** Spawn a LocationMarker. */
 	void CreateLocationMarker(const ELocationMarkerType MarkerType) const;
 
 	/** DynamoDB **/
@@ -71,10 +65,6 @@ protected:
 	void RemoveSelectedMarkers();
 	void DynamoDBStreamsReplay();
 	void DynamoDBStreamsListen();
-
-	/** DynamoDB Streams **/
-	Aws::Vector<Aws::DynamoDBStreams::Model::Stream> GetStreams() const;
-	
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);

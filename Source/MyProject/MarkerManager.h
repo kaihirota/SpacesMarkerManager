@@ -10,7 +10,7 @@
 #include "MarkerManager.generated.h"
 
 class ALocationMarker;
-UCLASS(BlueprintType)
+UCLASS(Blueprintable, BlueprintType)
 class MYPROJECT_API UMarkerManager : public UGameInstance
 {
 	GENERATED_BODY()

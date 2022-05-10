@@ -21,16 +21,19 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor BaseColor = FColor::Turquoise;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
+	float DefaultRadius = 200.0f;
+
 	/* Static Mesh Component */
-	UPROPERTY(VisibleAnywhere, Category=Default)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	UStaticMeshComponent* StaticMeshComp;
 
 	/* Sphere Component (not static mesh) */
-	UPROPERTY(VisibleAnywhere, Category=Default)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	class USphereComponent* SphereComp;
 
 	/* Emissive material */
-	UPROPERTY(VisibleAnywhere, Category=Default)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	UMaterialInterface* EmissiveMatInterface;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")

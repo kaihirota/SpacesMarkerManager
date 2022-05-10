@@ -15,7 +15,7 @@ ALocationMarker::ALocationMarker()
 	RootComponent = StaticMeshComp;
 
 	SphereComp = CreateDefaultSubobject<USphereComponent>(TEXT("Marker"));
-	SphereComp->InitSphereRadius(200.0f);
+	SphereComp->InitSphereRadius(DefaultRadius);
 	SphereComp->SetupAttachment(RootComponent);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshAsset(
