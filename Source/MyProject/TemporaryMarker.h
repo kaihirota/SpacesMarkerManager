@@ -15,21 +15,21 @@ public:
 	// Sets default values for this actor's properties
 	ATemporaryMarker();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor DefaultColor = FColor::Red;
 
 	/* Initial Counter value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	float InitialCounter = 1000.0f;
 
 	/* Current Counter value */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	int Counter = InitialCounter;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	int CounterTickSize = 1;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	FTimerHandle TimerHandle;
 
 protected:
@@ -40,9 +40,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void IncrementCounter(int Count);
 
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void DecrementCounter(int Count);
 };

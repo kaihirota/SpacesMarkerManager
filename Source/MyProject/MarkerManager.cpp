@@ -37,7 +37,7 @@ void UMarkerManager::Init()
 
 	const Aws::Auth::AWSCredentials Credentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
 	Aws::Client::ClientConfiguration Config = Aws::Client::ClientConfiguration();
-	Config.region = MojexaSpacesAwsRegion;
+	Config.region = SpacesAwsRegion;
 	if (UseDynamoDBLocal) Config.endpointOverride = DynamoDBLocalEndpoint;
 
 	DynamoClient = new Aws::DynamoDB::DynamoDBClient(Credentials, Config);

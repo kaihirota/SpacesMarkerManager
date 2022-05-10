@@ -8,7 +8,7 @@
 static const Aws::String AWSAccessKeyId = "AKIA6BPFQACFZTW2QD4K";
 static const Aws::String AWSSecretKey = "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";
 static const Aws::String DynamoDBTableName = "mojexa-markers";
-static const char* MojexaSpacesAwsRegion = Aws::Region::AP_SOUTHEAST_2;
+static const char* SpacesAwsRegion = Aws::Region::AP_SOUTHEAST_2;
 
 inline Aws::String FStringToAwsString(const FString& String)
 {

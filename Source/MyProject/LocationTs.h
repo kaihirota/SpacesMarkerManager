@@ -10,13 +10,13 @@ struct FLocationTs
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	FDateTime Timestamp;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	FVector Coordinate;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	FVector Wgs84Coordinate;
 
 	FLocationTs()

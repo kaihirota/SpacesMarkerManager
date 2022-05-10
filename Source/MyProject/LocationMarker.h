@@ -18,7 +18,7 @@ public:
 	// Sets default values for this actor's properties
 	ALocationMarker();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor BaseColor = FColor::Turquoise;
 
 	/* Static Mesh Component */
@@ -33,42 +33,42 @@ public:
 	UPROPERTY(VisibleAnywhere, Category=Default)
 	UMaterialInterface* EmissiveMatInterface;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	UMaterialInstanceDynamic* DynamicMaterial;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	FString DeviceID;
 	
 	/* Location and timestamp */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	FLocationTs LocationTs;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	bool Selected;
 
 	/**
 	* Select or unselect this marker
 	* @returns Selected [bool] The value of the selected state 
 	**/
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	bool ToggleSelection();
 	
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	FLinearColor GetColor() const;
 	
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void SetColor(const FLinearColor Color) const;
 
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	float GetOpacity() const;
 	
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void SetOpacity(float OpacityVal) const;
 	
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	FString ToString() const;
 
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	FString ToJsonString() const;
 
 	TSharedRef<FJsonObject> ToJsonObject() const;

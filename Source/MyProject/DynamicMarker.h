@@ -15,16 +15,16 @@ public:
 	// Sets default values for this actor's properties
 	ADynamicMarker();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor DynamicMarkerColor = FColor::Purple;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	int idx = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	float InterpolationsPerSecond = 1000.0f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MojexaSpaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	TArray<FLocationTs> HistoryArr; // heap
 
 protected:
@@ -37,7 +37,7 @@ public:
 
 	FString ToString() const;
 
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void AddLocationTs(const FLocationTs Location);
 	
 	FString ToJsonString() const;

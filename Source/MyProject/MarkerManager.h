@@ -41,7 +41,7 @@ public:
 	* @param DeviceID
 	* @returns Marker [ALocationMarker] 
 	**/
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	ALocationMarker* CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType,
 								  const FDateTime Timestamp, const FString DeviceID);
 	ALocationMarker* CreateMarker(const FVector SpawnLocation, const ELocationMarkerType MarkerType);
@@ -57,14 +57,14 @@ public:
 	* @param Marker
 	* @returns Success [bool] True if insert succeeded, else False.
 	**/
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces DynamoDB")
+	UFUNCTION(BlueprintCallable, Category="Spaces DynamoDB")
 	bool CreateMarkerInDB(const ALocationMarker* Marker);
 
 	/**
 	* Fetch all markers from DynamoDB and spawn them in the world.
 	* For DynamicMarkers, only one marker will be spawned for the most recent known location.
 	**/
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces DynamoDB")
+	UFUNCTION(BlueprintCallable, Category="Spaces DynamoDB")
 	void GetAllMarkersFromDynamoDB();
 
 	/**
@@ -74,7 +74,7 @@ public:
 	* @param LastKnownTimestamp
 	* @returns LatestLocation [FVector]
 	**/
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces DynamoDB")
+	UFUNCTION(BlueprintCallable, Category="Spaces DynamoDB")
 	FVector GetLatestRecord(const FString DeviceID, const FDateTime LastKnownTimestamp);
 
 	/**
@@ -82,10 +82,10 @@ public:
 	* If DeleteFromDB is true, the marker will also be deleted from DynamoDB
 	* @param DeleteFromDB [bool] Default set to false.
 	**/
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces DynamoDB")
+	UFUNCTION(BlueprintCallable, Category="Spaces DynamoDB")
 	void DeleteSelectedMarkers(const bool DeleteFromDB = true);
 
-	UFUNCTION(BlueprintCallable, Category="MojexaSpaces DynamoDB")
+	UFUNCTION(BlueprintCallable, Category="Spaces DynamoDB")
 	bool DeleteMarkerFromDynamoDB(FString DeviceID, FDateTime Timestamp);
 	
 	/****************   DynamoDB Streams   ******************/
