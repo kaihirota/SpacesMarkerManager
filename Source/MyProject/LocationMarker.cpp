@@ -19,7 +19,7 @@ ALocationMarker::ALocationMarker()
 	SphereComp->SetupAttachment(RootComponent);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshAsset(
-		TEXT("StaticMesh'/Engine/BasicShapes/Sphere.Sphere'"));
+		TEXT("StaticMesh'/SpacesMarkerManager/Shapes/Shape_Sphere.Shape_Sphere'"));
 	if (SphereMeshAsset.Succeeded())
 	{
 		StaticMeshComp->SetStaticMesh(SphereMeshAsset.Object);
@@ -31,7 +31,7 @@ ALocationMarker::ALocationMarker()
 		StaticMeshComp->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	};
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveGreen(TEXT("/Game/EmissiveGreen.EmissiveGreen"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> EmissiveGreen(TEXT("/SpacesMarkerManager/EmissiveGreen.EmissiveGreen"));
 	if (EmissiveGreen.Succeeded())
 	{
 		DynamicMaterial = UMaterialInstanceDynamic::Create(EmissiveGreen.Object, nullptr);
