@@ -39,6 +39,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
 	FTimerHandle TimerHandle;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
+	ACesiumGeoreference* Georeference;
+
 public:
 	virtual void Init() override;
 	virtual void Shutdown() override;
@@ -164,6 +167,5 @@ public:
 
 	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records,
 	                                  FDateTime TReplayStartFrom);
-protected:
-	
+	FLocationTs WrapLocationTs(const FDateTime Timestamp, const double Lon, const double Lat, const double Elev) const;
 };

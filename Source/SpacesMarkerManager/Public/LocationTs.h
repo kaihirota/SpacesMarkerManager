@@ -74,15 +74,10 @@ struct FLocationTs
 	{
 	}
 
-	FLocationTs(const FVector Location)
+	FLocationTs(const FDateTime DateTime, const FVector Wgs84Location, const FVector InGameLocation)
 	{
-		Coordinate = Location;
-		Timestamp = FDateTime::Now();
-	}
-
-	FLocationTs(const FDateTime DateTime, const FVector Location)
-	{
-		Coordinate = Location;
+		Coordinate = InGameLocation;
+		Wgs84Coordinate = Wgs84Location;
 		Timestamp = DateTime;
 	}
 	
@@ -94,7 +89,7 @@ struct FLocationTs
 	FString ToString() const
 	{
 		TArray<FStringFormatArg> Args;
-		Args.Add(FStringFormatArg(Coordinate.ToString()));
+		Args.Add(FStringFormatArg(Wgs84Coordinate.ToString()));
 		Args.Add(FStringFormatArg(Timestamp.ToIso8601()));
 		return FString::Format(TEXT("({0}, '{1}')"), Args);
 	}

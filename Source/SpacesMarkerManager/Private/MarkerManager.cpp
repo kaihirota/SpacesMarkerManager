@@ -16,6 +16,7 @@
 #include "aws/dynamodbstreams/model/GetRecordsRequest.h"
 #include "aws/dynamodbstreams/model/GetShardIteratorRequest.h"
 #include "aws/dynamodbstreams/model/ListStreamsRequest.h"
+#include "CesiumGeoreference.h"
 #include "Misc/DefaultValueHelper.h"
 
 
@@ -38,14 +39,18 @@ void UMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("DynamoDB Streams ready"));
 
 	UE_LOG(LogTemp, Warning, TEXT("Initialized AWS SDK."));
-	UE_LOG(LogTemp, Warning, TEXT("Initialized MarkerManager Subsystem."));
+	
+	this->Georeference = ACesiumGeoreference::GetDefaultGeoreference(this);
+	UE_LOG(LogTemp, Warning, TEXT("Initialized CesiumGeoreference."));
+
+	UE_LOG(LogTemp, Warning, TEXT("Initialized MarkerManager GameInstance."));
 }
 
 void UMarkerManager::Shutdown()
 {
 	Super::Shutdown();
 	Aws::ShutdownAPI(Aws::SDKOptions());
-	UE_LOG(LogTemp, Warning, TEXT("Game instance shutdown complete"));
+	UE_LOG(LogTemp, Warning, TEXT("MarkerManager GameInstance shutdown complete"));
 }
 
 void UMarkerManager::DynamoDBStreamsListen()
@@ -243,8 +248,7 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 					const double Lon = FCString::Atod(*FString(JsonView.GetObject(PositionXAttributeNameAws).GetString("N").c_str()));
 					const double Lat = FCString::Atod(*FString(JsonView.GetObject(PositionYAttributeNameAws).GetString("N").c_str()));
 					const double Elev = FCString::Atod(*FString(JsonView.GetObject(PositionZAttributeNameAws).GetString("N").c_str()));
-					const FVector Coordinate = FVector(Lon, Lat, Elev);
-					const FLocationTs LocationTs = FLocationTs(Timestamp, Coordinate);
+					const FLocationTs LocationTs = WrapLocationTs(Timestamp, Lon, Lat, Elev);
 					
 					ALocationMarker* Marker;
 					if (MarkerType == ELocationMarkerType::Dynamic && LocationMarkers.Contains(DeviceID))
@@ -276,6 +280,21 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 	}
 }
 
+FLocationTs UMarkerManager::WrapLocationTs(const FDateTime Timestamp, const double Lon, const double Lat, const double Elev) const
+{
+	const FVector Wgs84Coordinate = FVector(Lon, Lat, Elev);
+	FVector InGameCoordinate;
+	if (this->Georeference)
+	{
+		const glm::dvec3 UECoords = this->Georeference->TransformLongitudeLatitudeHeightToUnreal(glm::dvec3(Lon, Lat, Elev));
+		InGameCoordinate = FVector(UECoords.x, UECoords.y, UECoords.z);
+	} else
+	{
+		InGameCoordinate = FVector(Lon, Lat, Elev);
+	}
+	return FLocationTs(Timestamp, Wgs84Coordinate, InGameCoordinate);
+}
+
 auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime LastKnownTimestamp) -> FVector
 {
 	Aws::DynamoDB::Model::QueryRequest Request;
@@ -305,10 +324,10 @@ auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime Las
 			if (Timestamp > LastKnownTimestamp)
 			{
 				// get location data
-				float lon, lat, elev;
-				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionXAttributeNameAws).GetN().c_str()), lon);
-				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionYAttributeNameAws).GetN().c_str()), lat);
-				FDefaultValueHelper::ParseFloat(FString(Item.at(PositionZAttributeNameAws).GetN().c_str()), elev);
+				double lon, lat, elev;
+				FDefaultValueHelper::ParseDouble(FString(Item.at(PositionXAttributeNameAws).GetN().c_str()), lon);
+				FDefaultValueHelper::ParseDouble(FString(Item.at(PositionYAttributeNameAws).GetN().c_str()), lat);
+				FDefaultValueHelper::ParseDouble(FString(Item.at(PositionZAttributeNameAws).GetN().c_str()), elev);
 				return FVector(lon, lat, elev);
 			}
 		}
@@ -420,12 +439,11 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 			Aws::DynamoDB::Model::AttributeValue TimestampValue = Pairs.at(SortKeyAttributeNameAws);
 			FDateTime Timestamp = FDateTime::FromUnixTimestamp(std::atoi(TimestampValue.GetS().c_str()));
 			
-			float Lon, Lat, Elev;
-			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionXAttributeNameAws).GetN().c_str()), Lon);
-			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionYAttributeNameAws).GetN().c_str()), Lat);
-			FDefaultValueHelper::ParseFloat(FString(Pairs.at(PositionZAttributeNameAws).GetN().c_str()), Elev);
-			const FVector Coordinate = FVector(Lon, Lat, Elev);
-			const FLocationTs LocationTs = FLocationTs(Timestamp, Coordinate);
+			double Lon, Lat, Elev;
+			FDefaultValueHelper::ParseDouble(FString(Pairs.at(PositionXAttributeNameAws).GetN().c_str()), Lon);
+			FDefaultValueHelper::ParseDouble(FString(Pairs.at(PositionYAttributeNameAws).GetN().c_str()), Lat);
+			FDefaultValueHelper::ParseDouble(FString(Pairs.at(PositionZAttributeNameAws).GetN().c_str()), Elev);
+			const FLocationTs LocationTs = WrapLocationTs(Timestamp, Lon, Lat, Elev);
 					
 			ALocationMarker* Marker;
 			if (MarkerType == ELocationMarkerType::Dynamic && LocationMarkers.Contains(DeviceID))

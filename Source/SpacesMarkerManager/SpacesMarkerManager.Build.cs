@@ -14,6 +14,6 @@ public class SpacesMarkerManager : ModuleRules
 		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 		
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HTTP", "Json", "JsonUtilities", "AWSCoreLibrary", "DynamoDBClientLibrary", "DynamoDBStreamsClientLibrary"}); 
-		PrivateDependencyModuleNames.AddRange(new string[] { "JsonUtilities" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "JsonUtilities", "CesiumRuntime"});
 	}
 }
