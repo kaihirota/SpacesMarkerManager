@@ -56,13 +56,13 @@ void UMarkerManager::DynamoDBStreamsListen()
 	}
 	else
 	{
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UMarkerManager::DynamoDBStreamsListen_,
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UMarkerManager::DynamoDBStreamsListenOnce,
 		                                          PollingInterval, true, 0.0f);
 	}
 	Listening = !Listening;
 }
 
-void UMarkerManager::DynamoDBStreamsListen_()
+void UMarkerManager::DynamoDBStreamsListenOnce()
 {
 	const TArray<FAwsString> Streams = GetStreams(
 		FAwsString::FromFString(*DynamoDBTableName));

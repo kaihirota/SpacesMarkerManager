@@ -112,7 +112,7 @@ public:
 	 * Uses DynamoDB Stream LATEST iterator type.
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
-	void DynamoDBStreamsListen_();
+	void DynamoDBStreamsListenOnce();
 
 	/**
 	 * Given a DynamoDB table, which may be associated with one or more streams, replay the events in the last 24 hours.
