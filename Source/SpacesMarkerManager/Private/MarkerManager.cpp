@@ -483,8 +483,8 @@ void UMarkerManager::DeleteSelectedMarkers(const bool DeleteFromDB)
 			if (Marker->Selected)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("Destroying: %s - %s"), *Marker->GetName(), *Marker->ToString());
-				DeleteMarkerFromDynamoDB(Marker->DeviceID, Marker->LocationTs.Timestamp);
-				if (DeleteFromDB) Marker->Destroy();
+				if (DeleteFromDB) DeleteMarkerFromDynamoDB(Marker->DeviceID, Marker->LocationTs.Timestamp);
+				Marker->Destroy();
 				It.RemoveCurrent();
 			}
 		}

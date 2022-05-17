@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CesiumGeoreference.h"
 #include "LocationMarkerType.h"
 #include "LocationTs.h"
 #include "aws/dynamodb/DynamoDBClient.h"
