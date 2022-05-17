@@ -13,3 +13,5 @@ Saved
 *.xcodeproj
 *.xcworkspace
 .idea
+RiderLink
+.DS_Store

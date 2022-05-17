@@ -1,0 +1,31 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "SpacesMarkerManager",
+	"Description": "Marker Manager for controlling location markers.",
+	"Category": "Other",
+	"CreatedBy": "Kai Hirota",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"SupportURL": "",
+	"MarketplaceURL": "",
+	"EnabledByDefault" : true,
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "SpacesMarkerManager",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "awsSDK",
+			"Enabled": true
+		}
+	]
+}
