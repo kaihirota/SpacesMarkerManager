@@ -284,13 +284,13 @@ FLocationTs UMarkerManager::WrapLocationTs(const FDateTime Timestamp, const doub
 {
 	const FVector Wgs84Coordinate = FVector(Lon, Lat, Elev);
 	FVector InGameCoordinate;
-	if (this->Georeference)
+	if (this->Georeference && WithCesiumGeoreference)
 	{
 		const glm::dvec3 UECoords = this->Georeference->TransformLongitudeLatitudeHeightToUnreal(glm::dvec3(Lon, Lat, Elev));
 		InGameCoordinate = FVector(UECoords.x, UECoords.y, UECoords.z);
 	} else
 	{
-		InGameCoordinate = FVector(Lon, Lat, Elev);
+		InGameCoordinate = Wgs84Coordinate;
 	}
 	return FLocationTs(Timestamp, Wgs84Coordinate, InGameCoordinate);
 }
@@ -343,13 +343,13 @@ ALocationMarker* UMarkerManager::CreateMarker(const FLocationTs LocationTs, cons
 	switch (MarkerType)
 	{
 		case ELocationMarkerType::Static:
-			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(LocationTs.Coordinate, FRotator::ZeroRotator);
+			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
 			break;
 		case ELocationMarkerType::Temporary:
-			MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(LocationTs.Coordinate, FRotator::ZeroRotator);
+			MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
 			break;
 		case ELocationMarkerType::Dynamic:
-			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(LocationTs.Coordinate, FRotator::ZeroRotator);
+			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
 			break;
 		default:
 			return nullptr;
@@ -389,13 +389,13 @@ bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 	Request.AddItem(SortKeyAttributeNameAws, SortKeyValue);
 
 	Aws::DynamoDB::Model::AttributeValue Lon, Lat, Elev;
-	Lon.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Coordinate.X))));
+	Lon.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.UECoordinate.X))));
 	Request.AddItem(PositionXAttributeNameAws, Lon);
 
-	Lat.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Coordinate.Y))));
+	Lat.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.UECoordinate.Y))));
 	Request.AddItem(PositionYAttributeNameAws, Lat);
 
-	Elev.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Coordinate.Z))));
+	Elev.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.UECoordinate.Z))));
 	Request.AddItem(PositionZAttributeNameAws, Elev);
 
 	const Aws::DynamoDB::Model::PutItemOutcome Outcome = DynamoClient->PutItem(Request);

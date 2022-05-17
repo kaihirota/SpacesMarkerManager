@@ -91,7 +91,7 @@ protected:
 inline bool operator==(const ALocationMarker& Marker1, const ALocationMarker& Marker2)
 {
 	return (Marker1.DeviceID == Marker2.DeviceID &&
-		Marker1.LocationTs.Coordinate == Marker1.LocationTs.Coordinate &&
+		Marker1.LocationTs.Wgs84Coordinate == Marker1.LocationTs.Wgs84Coordinate &&
 		Marker1.LocationTs.Timestamp == Marker2.LocationTs.Timestamp);
 }
 

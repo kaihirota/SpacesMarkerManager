@@ -24,7 +24,7 @@ void ADynamicMarker::BeginPlay()
 		SetReplicates(true);
 		SetReplicateMovement(true);
 	}
-	LocationTs.Coordinate = GetActorLocation();
+	LocationTs.UECoordinate = GetActorLocation();
 }
 
 void ADynamicMarker::AddLocationTs(const FLocationTs Location)
@@ -35,7 +35,7 @@ void ADynamicMarker::AddLocationTs(const FLocationTs Location)
 // Called every frame
 void ADynamicMarker::Tick(const float DeltaTime)
 {
-	if (GetActorLocation() == LocationTs.Coordinate)
+	if (GetActorLocation() == LocationTs.UECoordinate)
 	{
 		if ((idx >= 0) && (idx < HistoryArr.Num()))
 		{
@@ -44,7 +44,7 @@ void ADynamicMarker::Tick(const float DeltaTime)
 				TEXT("Dynamic Marker %s at %s, next stop %s"),
 				*DeviceID,
 				*GetActorLocation().ToString(),
-				*LocationTs.Coordinate.ToString());
+				*LocationTs.UECoordinate.ToString());
 			if (DeltaTime > 0) idx++;
 			else if (DeltaTime < 0) idx--;
 			this->Counter = static_cast<int>(this->InitialCounter);
@@ -56,7 +56,7 @@ void ADynamicMarker::Tick(const float DeltaTime)
 	{
 		const FVector Step = FMath::VInterpConstantTo(
 			GetActorLocation(),
-			LocationTs.Coordinate,
+			LocationTs.UECoordinate,
 			DeltaTime,
 			InterpolationsPerSecond);
 		SetActorLocation(Step, true, nullptr, ETeleportType::None);
