@@ -10,7 +10,7 @@ static const Aws::String AWSSecretKey = "KSPoLQlYXU1B3A7d9+uDo27nyIiclt8Zos0tPNm
 static const Aws::String DynamoDBLocalEndpoint = "http://localhost:8000";
 static const char* SpacesAwsRegion = Aws::Region::AP_SOUTHEAST_2;
 static const bool UseDynamoDBLocal = true;
-static const bool WithCesiumGeoreference = false;
+static const bool UseCesiumGeoreference = false;
 static const double PollingInterval = 2.0f;
 
 inline Aws::String FStringToAwsString(const FString& String)

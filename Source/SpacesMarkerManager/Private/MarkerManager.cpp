@@ -290,7 +290,7 @@ FLocationTs UMarkerManager::WrapLocationTs(const FDateTime Timestamp, const doub
 {
 	const FVector Wgs84Coordinate = FVector(Lon, Lat, Elev);
 	FVector InGameCoordinate;
-	if (this->Georeference && WithCesiumGeoreference)
+	if (this->Georeference && UseCesiumGeoreference)
 	{
 		const glm::dvec3 UECoords = this->Georeference->TransformLongitudeLatitudeHeightToUnreal(glm::dvec3(Lon, Lat, Elev));
 		InGameCoordinate = FVector(UECoords.x, UECoords.y, UECoords.z);
