@@ -371,7 +371,9 @@ ALocationMarker* UMarkerManager::CreateMarker(const FLocationTs LocationTs, cons
 	{
 		/* Bind the Marker's BeginDestroy with deletion from database. Do this only for static location markers. */
 		if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor)) {
+			DynamicMarker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
 		} else if (ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(MarkerActor)) {
+			TemporaryMarker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
 		} else if (ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor))
 		{
 			Marker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");

@@ -65,7 +65,6 @@ void ADynamicMarker::Tick(const float DeltaTime)
 
 FString ADynamicMarker::ToString() const
 {
-	// return Super::ToString();
 	TArray<FStringFormatArg> Args;
 	FString History = FString(", History=[");
 	for (FLocationTs Record : HistoryArr)
