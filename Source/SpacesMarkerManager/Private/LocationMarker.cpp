@@ -47,8 +47,7 @@ bool ALocationMarker::ToggleSelection()
 	Selected = !Selected;
 	if (Selected) SetColor(FColor::Red);
 	else SetColor(BaseColor);
-	UE_LOG(LogTemp, Log, TEXT("%s: %s - %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *GetName(),
-	       *ToString());
+	UE_LOG(LogTemp, Log, TEXT("%s: %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *ToString());
 	return Selected;
 }
 
@@ -79,11 +78,17 @@ float ALocationMarker::GetOpacity() const
 FString ALocationMarker::ToString() const
 {
 	TArray<FStringFormatArg> Args;
+	Args.Add(FStringFormatArg(*ClassName));
 	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
 	else Args.Add(FStringFormatArg(FString("")));
+
 	Args.Add(FStringFormatArg(LocationTs.UECoordinate.ToString()));
 	Args.Add(FStringFormatArg(LocationTs.Timestamp.ToIso8601()));
-	return FString::Format(TEXT("LocationMarker(DeviceID='{0}' Coordinate=({1}), Timestamp='{2}')"), Args);
+
+	if (Selected) Args.Add(FString("True"));
+	else Args.Add(FString("False"));
+	
+	return FString::Format(TEXT("{0}(DeviceID='{1}' Coordinate=({2}), Timestamp='{3}', Selected='{4}')"), Args);
 }
 
 FString ALocationMarker::ToJsonString() const
@@ -115,7 +120,9 @@ void ALocationMarker::BeginPlay()
 
 void ALocationMarker::BeginDestroy()
 {
+	UE_LOG(LogTemp, Warning, TEXT("BeginDestroy: %s"), *DeviceID);
 	Super::BeginDestroy();
+	if (MarkerOnDelete.IsBound()) MarkerOnDelete.Execute(DeviceID, LocationTs.Timestamp, DeleteFromDBOnDestroy);
 }
 
 // Called every frame

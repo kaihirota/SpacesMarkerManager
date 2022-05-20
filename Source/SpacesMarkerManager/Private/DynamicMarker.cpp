@@ -65,16 +65,18 @@ void ADynamicMarker::Tick(const float DeltaTime)
 
 FString ADynamicMarker::ToString() const
 {
+	// return Super::ToString();
 	TArray<FStringFormatArg> Args;
-	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
-	else Args.Add(FStringFormatArg(FString("")));
-	FString Ret = FString::Format(TEXT("LocationMarker(DeviceID='{0}', History=["), Args);
-	
+	FString History = FString(", History=[");
 	for (FLocationTs Record : HistoryArr)
 	{
-		Args.Add(Record.ToString());
+		History.Append(Record.ToString());
+		History.Append(", ");
 	}
-	Ret.Append("])");
+	History.Append("])");
+	
+	FString Ret = Super::ToString();
+	Ret.InsertAt(Ret.Len()-1, History);
 	return Ret;
 }
 

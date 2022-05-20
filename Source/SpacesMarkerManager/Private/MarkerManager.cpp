@@ -267,7 +267,13 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 					{
 						// spawn dynamic marker only if AllMarkers doesn't contain the device ID
 						Marker = CreateMarker(LocationTs, MarkerType, DeviceID);
-						UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(), *Marker->ToString());
+						if (Marker != nullptr)
+						{
+							UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s"), *Marker->ToString());
+						} else
+						{
+							UE_LOG(LogTemp, Warning, TEXT("Failed to create Dynamic Marker: %s"), *DeviceID);
+						}
 					}
 				}
 				else
@@ -338,6 +344,12 @@ auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime Las
 
 ALocationMarker* UMarkerManager::CreateMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID)
 {
+	if (LocationMarkers.Contains(DeviceID))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Cannot create marker with ID %s because it already exists"), *DeviceID);
+		return nullptr;
+	}
+	
 	AActor* MarkerActor;
 
 	switch (MarkerType)
@@ -357,19 +369,24 @@ ALocationMarker* UMarkerManager::CreateMarker(const FLocationTs LocationTs, cons
 
 	if (MarkerActor != nullptr)
 	{
-		ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor);
-		if (Marker != nullptr)
+		/* Bind the Marker's BeginDestroy with deletion from database. Do this only for static location markers. */
+		if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor)) {
+		} else if (ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(MarkerActor)) {
+		} else if (ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor))
+		{
+			Marker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
+		}
+
+		if (ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor))
 		{
 			Marker->LocationTs = LocationTs;
 			Marker->DeviceID = DeviceID;
-
-			UE_LOG(LogTemp, Warning, TEXT("Created %s - %s"), *Marker->GetName(), *Marker->ToString());
-			// UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToJsonString());
+			UE_LOG(LogTemp, Warning, TEXT("Created %s"), *Marker->ToString());
+			
+			LocationMarkers.Add(DeviceID, Marker);
+			UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), LocationMarkers.Num());
+			return Marker;
 		}
-
-		LocationMarkers.Add(DeviceID, Marker);
-		UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), LocationMarkers.Num());
-		return Marker;
 	}
 	UE_LOG(LogTemp, Warning, TEXT("Error: Could not cast LocationMarker to desired type."));
 	return nullptr;
@@ -473,25 +490,39 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 	}
 }
 
-void UMarkerManager::DeleteSelectedMarkers(const bool DeleteFromDB)
+void UMarkerManager::DestroySelectedMarkers()
 {
 	for (auto It = LocationMarkers.CreateIterator(); It; ++It)
 	{
 		ALocationMarker* Marker = It.Value();
 		if (Marker != nullptr)
 		{
-			if (Marker->Selected)
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToString());
+			if (Marker->Selected == true)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Destroying: %s - %s"), *Marker->GetName(), *Marker->ToString());
-				if (DeleteFromDB) DeleteMarkerFromDynamoDB(Marker->DeviceID, Marker->LocationTs.Timestamp);
+				UE_LOG(LogTemp, Warning, TEXT("Destroying: %s"), *Marker->ToString());
 				Marker->Destroy();
-				It.RemoveCurrent();
 			}
 		}
 	}
 }
 
-auto UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDateTime Timestamp) -> bool
+void UMarkerManager::DeleteMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB)
+{
+	if (LocationMarkers.Contains(DeviceID))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Removing from TMap: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
+		LocationMarkers.FindAndRemoveChecked(DeviceID);
+	}
+
+	if (DeleteFromDB)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Deleting from DB: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
+		DeleteMarkerFromDynamoDB(DeviceID, Timestamp);
+	}
+}
+
+bool UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDateTime Timestamp) const
 {
 	Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> AttributeValues;
 	Aws::DynamoDB::Model::AttributeValue PartitionKey;
@@ -506,5 +537,6 @@ auto UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDat
 	                                                        .WithTableName(DynamoDBTableNameAws)
 	                                                        .WithKey(AttributeValues);
 	const Aws::DynamoDB::Model::DeleteItemOutcome Outcome = DynamoClient->DeleteItem(Request);
-	return Outcome.IsSuccess();
+	const bool Success = Outcome.IsSuccess();
+	return Success;
 }

@@ -73,7 +73,8 @@ public:
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void GetAllMarkersFromDynamoDB();
-	
+
+
 	/**
 	* Given a DeviceID, query DynamoDB for the last known location.
 	* If the last known location from DynamoDB is the same as LastKnownTimestamp, zero vector will be returned
@@ -85,12 +86,20 @@ public:
 	FVector GetLatestRecord(const FString DeviceID, const FDateTime LastKnownTimestamp);
 
 	/**
-	* Delete all the spawned markers that are currently selected.
-	* If DeleteFromDB is true, the marker will also be deleted from DynamoDB
-	* @param DeleteFromDB [bool] Default set to false.
+	* Destroy all the spawned markers that are currently selected.
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
-	void DeleteSelectedMarkers(const bool DeleteFromDB = true);
+	void DestroySelectedMarkers();
+
+	/**
+	* Delete the marker from LocationMarkers.
+	* If DeleteFromDB is true, the marker will also be deleted from DynamoDB
+	* @param DeviceID [FString]
+	* @param Timestamp [FDateTime]
+	* @param DeleteFromDB [bool]
+	**/
+	UFUNCTION(BlueprintCallable, Category="Spaces")
+	void DeleteMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB);
 
 	/**
 	 * Deletes a marker with matching attributes.
@@ -98,7 +107,7 @@ public:
 	 * @param Timestamp
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
-	bool DeleteMarkerFromDynamoDB(FString DeviceID, FDateTime Timestamp);
+	bool DeleteMarkerFromDynamoDB(const FString DeviceID, const FDateTime Timestamp) const;
 
 	/****************   DynamoDB Streams   ******************/
 

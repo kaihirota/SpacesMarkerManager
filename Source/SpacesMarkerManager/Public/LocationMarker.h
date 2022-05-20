@@ -8,8 +8,8 @@
 #include "GameFramework/Actor.h"
 #include "LocationMarker.generated.h"
 
-UCLASS()
-// class SPACES_ACT_API ALocationMarker : public AActor
+
+UCLASS(BlueprintType, Blueprintable)
 class SPACESMARKERMANAGER_API ALocationMarker : public AActor
 {
 public:
@@ -18,14 +18,22 @@ public:
 	// Sets default values for this actor's properties
 	ALocationMarker();
 
+	FString ClassName = FString("StaticMarker");
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor BaseColor = FColor::Turquoise;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	float DefaultRadius = 200.0f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
+	bool DeleteFromDBOnDestroy = false;
+
+	DECLARE_DELEGATE_ThreeParams(FLocationMarkerOnDelete, FString, FDateTime, bool);
+	FLocationMarkerOnDelete MarkerOnDelete;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
-	bool Selected;
+	bool Selected = false;
 	
 	/* Static Mesh Component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
@@ -69,16 +77,16 @@ public:
 	void SetOpacity(float OpacityVal) const;
 	
 	UFUNCTION(BlueprintCallable, Category="Spaces")
-	FString ToString() const;
+	virtual FString ToString() const;
 
 	UFUNCTION(BlueprintCallable, Category="Spaces")
-	FString ToJsonString() const;
+	virtual FString ToJsonString() const;
 
-	TSharedRef<FJsonObject> ToJsonObject() const;
+	virtual TSharedRef<FJsonObject> ToJsonObject() const;
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
