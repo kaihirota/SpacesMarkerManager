@@ -44,7 +44,7 @@ void ADynamicMarker::Tick(const float DeltaTime)
 				TEXT("Dynamic Marker %s at %s, next stop %s"),
 				*DeviceID,
 				*GetActorLocation().ToString(),
-				*LocationTs.UECoordinate.ToString());
+				*LocationTs.ToString());
 			if (DeltaTime > 0) idx++;
 			else if (DeltaTime < 0) idx--;
 			this->Counter = static_cast<int>(this->InitialCounter);

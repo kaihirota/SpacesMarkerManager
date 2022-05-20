@@ -40,6 +40,8 @@ ALocationMarker::ALocationMarker()
 		StaticMeshComp->SetMaterial(0, DynamicMaterial);
 		SetColor(BaseColor);
 	}
+
+	CesiumGlobeAnchor = CreateDefaultSubobject<UCesiumGlobeAnchorComponent>(TEXT("Anchor"));
 }
 
 bool ALocationMarker::ToggleSelection()
@@ -82,13 +84,12 @@ FString ALocationMarker::ToString() const
 	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
 	else Args.Add(FStringFormatArg(FString("")));
 
-	Args.Add(FStringFormatArg(LocationTs.UECoordinate.ToString()));
-	Args.Add(FStringFormatArg(LocationTs.Timestamp.ToIso8601()));
+	Args.Add(FStringFormatArg(LocationTs.ToString()));
 
 	if (Selected) Args.Add(FString("True"));
 	else Args.Add(FString("False"));
 	
-	return FString::Format(TEXT("{0}(DeviceID='{1}' Coordinate=({2}), Timestamp='{3}', Selected='{4}')"), Args);
+	return FString::Format(TEXT("{0}(DeviceID='{1}' LocationTs={2}, Selected={3})"), Args);
 }
 
 FString ALocationMarker::ToJsonString() const

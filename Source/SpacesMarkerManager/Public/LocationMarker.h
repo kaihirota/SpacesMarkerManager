@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CesiumGlobeAnchorComponent.h"
 #include "LocationTs.h"
 #include "Settings.h"
 #include "GameFramework/Actor.h"
@@ -42,6 +43,9 @@ public:
 	/* Sphere Component (not static mesh) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	class USphereComponent* SphereComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
+	UCesiumGlobeAnchorComponent* CesiumGlobeAnchor;
 
 	/* Emissive material */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")

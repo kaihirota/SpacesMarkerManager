@@ -92,6 +92,6 @@ struct FLocationTs
 		Args.Add(FStringFormatArg(UECoordinate.ToString()));
 		Args.Add(FStringFormatArg(Wgs84Coordinate.ToString()));
 		Args.Add(FStringFormatArg(Timestamp.ToIso8601()));
-		return FString::Format(TEXT("({0}, {1}, '{2}')"), Args);
+		return FString::Format(TEXT("(UE={0}, Wgs84={1}, Timestamp='{2}')"), Args);
 	}
 };
