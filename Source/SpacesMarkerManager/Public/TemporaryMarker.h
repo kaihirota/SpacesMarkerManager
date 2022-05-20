@@ -6,7 +6,7 @@
 #include "LocationMarker.h"
 #include "TemporaryMarker.generated.h"
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class SPACESMARKERMANAGER_API ATemporaryMarker : public ALocationMarker
 {
 	GENERATED_BODY()

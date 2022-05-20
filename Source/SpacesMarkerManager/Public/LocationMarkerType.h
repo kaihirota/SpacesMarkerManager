@@ -8,10 +8,10 @@
  * Temporary: Size can be set as a function of time
  * Dynamic: Location & size can be changed
  */
-UENUM()
+UENUM(BlueprintType)
 enum class ELocationMarkerType : uint8
 {
-	Static,
-	Temporary,
-	Dynamic
+	Static		UMETA(DisplayName = "StaticMarker"),
+	Temporary		UMETA(DisplayName = "TemporaryMarker"),
+	Dynamic		UMETA(DisplayName = "DynamicMarker")
 };

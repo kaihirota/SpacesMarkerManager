@@ -6,7 +6,7 @@
 #include "TemporaryMarker.h"
 #include "DynamicMarker.generated.h"
 
-UCLASS()
+UCLASS(BlueprintType, Blueprintable)
 class SPACESMARKERMANAGER_API ADynamicMarker : public ATemporaryMarker
 {
 	GENERATED_BODY()
