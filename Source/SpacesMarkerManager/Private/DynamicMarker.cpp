@@ -6,6 +6,7 @@
 #include "JsonObjectConverter.h"
 #include "Kismet/GameplayStatics.h"
 
+DEFINE_LOG_CATEGORY(LogDynamicMarker);
 
 // Sets default values
 ADynamicMarker::ADynamicMarker()
@@ -39,7 +40,7 @@ void ADynamicMarker::Tick(const float DeltaTime)
 		if ((idx >= 0) && (idx < HistoryArr.Num()))
 		{
 			LocationTs = HistoryArr[idx];
-			UE_LOG(LogTemp, Warning,
+			UE_LOG(LogDynamicMarker, Display,
 				TEXT("Dynamic Marker %s at %s, next stop %s"),
 				*DeviceID,
 				*GetActorLocation().ToString(),

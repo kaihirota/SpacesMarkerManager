@@ -19,12 +19,13 @@
 #include "CesiumGeoreference.h"
 #include "Misc/DefaultValueHelper.h"
 
+DEFINE_LOG_CATEGORY(LogMarkerManager);
 
 void UMarkerManager::Init()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Game instance initializing"));
+	UE_LOG(LogMarkerManager, Display, TEXT("Game instance initializing"));
 	Super::Init();
-	UE_LOG(LogTemp, Warning, TEXT("Initializing AWS SDK..."));
+	UE_LOG(LogMarkerManager, Display, TEXT("Initializing AWS SDK..."));
 	Aws::InitAPI(Aws::SDKOptions());
 
 	const Aws::Auth::AWSCredentials Credentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
@@ -33,27 +34,27 @@ void UMarkerManager::Init()
 	if (UseDynamoDBLocal) Config.endpointOverride = DynamoDBLocalEndpoint;
 
 	DynamoClient = new Aws::DynamoDB::DynamoDBClient(Credentials, Config);
-	UE_LOG(LogTemp, Warning, TEXT("DynamoDB client ready"));
+	UE_LOG(LogMarkerManager, Display, TEXT("DynamoDB client ready"));
 
 	DynamoDBStreamsClient = new Aws::DynamoDBStreams::DynamoDBStreamsClient(Credentials, Config);
-	UE_LOG(LogTemp, Warning, TEXT("DynamoDB Streams client ready"));
+	UE_LOG(LogMarkerManager, Display, TEXT("DynamoDB Streams client ready"));
 
-	UE_LOG(LogTemp, Warning, TEXT("Initialized AWS SDK."));
+	UE_LOG(LogMarkerManager, Display, TEXT("Initialized AWS SDK."));
 
 	if (UseCesiumGeoreference)
 	{
 		this->Georeference = ACesiumGeoreference::GetDefaultGeoreference(this);
-		UE_LOG(LogTemp, Warning, TEXT("Initialized CesiumGeoreference."));
+		UE_LOG(LogMarkerManager, Display, TEXT("Initialized CesiumGeoreference."));
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Initialized MarkerManager GameInstance."));
+	UE_LOG(LogMarkerManager, Display, TEXT("Initialized MarkerManager GameInstance."));
 }
 
 void UMarkerManager::Shutdown()
 {
 	Super::Shutdown();
 	Aws::ShutdownAPI(Aws::SDKOptions());
-	UE_LOG(LogTemp, Warning, TEXT("MarkerManager GameInstance shutdown complete"));
+	UE_LOG(LogMarkerManager, Display, TEXT("MarkerManager GameInstance shutdown complete"));
 }
 
 void UMarkerManager::DynamoDBStreamsListen()
@@ -88,7 +89,7 @@ void UMarkerManager::DynamoDBStreamsListenOnce()
 
 TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Fetching DynamoDB Streams for table: %s"), *TableName.Fstring);
+	UE_LOG(LogMarkerManager, Display, TEXT("Fetching DynamoDB Streams for table: %s"), *TableName.Fstring);
 	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome = DynamoDBStreamsClient->ListStreams(
 		Aws::DynamoDBStreams::Model::ListStreamsRequest().WithTableName(TableName.AwsString));
 	
@@ -102,10 +103,10 @@ TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 			StreamArns.Add(FAwsString::FromAwsString(Stream.GetStreamArn()));
 		} 
 		LastEvaluatedStreamArn = ListStreamsResult.GetLastEvaluatedStreamArn();
-		UE_LOG(LogTemp, Warning, TEXT("Found %d DynamoDB Streams for table %s"), Streams.size(), *TableName.Fstring);
+		UE_LOG(LogMarkerManager, Display, TEXT("Found %d DynamoDB Streams for table %s"), Streams.size(), *TableName.Fstring);
 	} else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ListStreams error: %s"), *FString(ListStreamsOutcome.GetError().GetMessage().c_str()));
+		UE_LOG(LogMarkerManager, Warning, TEXT("ListStreams error: %s"), *FString(ListStreamsOutcome.GetError().GetMessage().c_str()));
 	}
 	return StreamArns;
 }
@@ -113,7 +114,7 @@ TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 
 TArray<FAwsString> UMarkerManager::GetShards(const FAwsString StreamArn) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("Stream ARN %s"), *StreamArn.Fstring);
+	UE_LOG(LogMarkerManager, Display, TEXT("Stream ARN %s"), *StreamArn.Fstring);
 	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome = DynamoDBStreamsClient->DescribeStream(
 		Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(StreamArn.AwsString));
 
@@ -126,11 +127,11 @@ TArray<FAwsString> UMarkerManager::GetShards(const FAwsString StreamArn) const
 		{
 			ShardIds.Add(FAwsString::FromAwsString(Shard.GetShardId()));
 		} 
-		UE_LOG(LogTemp, Warning, TEXT("Found %d shards for Stream ARN %s"), Shards.size(), *StreamArn.Fstring);
+		UE_LOG(LogMarkerManager, Display, TEXT("Found %d shards for Stream ARN %s"), Shards.size(), *StreamArn.Fstring);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("DescribeStreams error: %s"), *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
+		UE_LOG(LogMarkerManager, Warning, TEXT("DescribeStreams error: %s"), *FString(DescribeStreamOutcome.GetError().GetMessage().c_str()));
 	}
 	return ShardIds;
 }
@@ -151,7 +152,7 @@ void UMarkerManager::ScanStream(const FAwsString StreamArn, const FDateTime TRep
 	const TArray<FAwsString> Shards = GetShards(StreamArn);
 	for (auto Shard : Shards)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Shard %s"), *Shard.Fstring);
+		UE_LOG(LogMarkerManager, Display, TEXT("Shard %s"), *Shard.Fstring);
 		IterateShard(StreamArn, Shard, Aws::DynamoDBStreams::Model::ShardIteratorType::TRIM_HORIZON, TReplayStartFrom);
 	}
 }
@@ -164,7 +165,7 @@ void UMarkerManager::IterateShard(
 {
 	if (ShardIterator == "")
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ShardIterator not created. Creating it now."));
+		UE_LOG(LogMarkerManager, Display, TEXT("ShardIterator not created. Creating it now."));
 		Aws::DynamoDBStreams::Model::GetShardIteratorOutcome GetShardIteratorOutcome = DynamoDBStreamsClient->GetShardIterator(
 			Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
 			.WithStreamArn(StreamArn.AwsString)
@@ -176,7 +177,7 @@ void UMarkerManager::IterateShard(
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Error: Could not create ShardIterator"));
+			UE_LOG(LogMarkerManager, Warning, TEXT("Error: Could not create ShardIterator"));
 		}
 		return;
 	}
@@ -185,7 +186,7 @@ void UMarkerManager::IterateShard(
 	int ShardPageCount = 0;
 	do
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *ShardIterator);
+		UE_LOG(LogMarkerManager, Display, TEXT("Shard Iterator %s"), *ShardIterator);
 		Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome = DynamoDBStreamsClient->GetRecords(
 			Aws::DynamoDBStreams::Model::GetRecordsRequest().WithShardIterator(
 				Aws::String(TCHAR_TO_UTF8(*ShardIterator))));
@@ -199,11 +200,11 @@ void UMarkerManager::IterateShard(
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("GetRecords error: %s"),
+			UE_LOG(LogMarkerManager, Warning, TEXT("GetRecords error: %s"),
 			       *FString(GetRecordsOutcome.GetError().GetMessage().c_str()));
 			break;
 		}
-		UE_LOG(LogTemp, Warning, TEXT("Processing complete. Processed %d events from %d pages"), ProcessedRecordCount,
+		UE_LOG(LogMarkerManager, Display, TEXT("Processing complete. Processed %d events from %d pages"), ProcessedRecordCount,
 		       ShardPageCount);
 	}
 	while (ShardIterator != "" && NumberOfEmptyShards <= NumberOfEmptyShardsLimit);
@@ -213,7 +214,7 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 	const Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records,
 	const FDateTime TReplayStartFrom)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Found %d records"), Records.size());
+	UE_LOG(LogMarkerManager, Display, TEXT("Found %d records"), Records.size());
 	if (Records.size() == 0)
 	{
 		NumberOfEmptyShards++;
@@ -264,7 +265,7 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 							{
 								// pass the new data to the marker
 								DynamicMarker->AddLocationTs(LocationTs);
-								UE_LOG(LogTemp, Warning, TEXT("Added new location %s for Dynamic marker %s"),
+								UE_LOG(LogMarkerManager, Display, TEXT("Added new location %s for Dynamic marker %s"),
 									*LocationTs.ToString(),
 									*Marker->ToString());
 							}
@@ -274,10 +275,10 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 							Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
 							if (Marker != nullptr)
 							{
-								UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s"), *Marker->ToString());
+								UE_LOG(LogMarkerManager, Display, TEXT("Created Dynamic Marker: %s"), *Marker->ToString());
 							} else
 							{
-								UE_LOG(LogTemp, Warning, TEXT("Failed to create Dynamic Marker: %s"), *DeviceID);
+								UE_LOG(LogMarkerManager, Display, TEXT("Failed to create Dynamic Marker: %s"), *DeviceID);
 							}
 						}
 					} else
@@ -288,13 +289,13 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 						{
 							// spawn marker only if AllMarkers doesn't contain the device ID
 							Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
-							if (Marker != nullptr) UE_LOG(LogTemp, Warning, TEXT("Created: %s"), *Marker->ToString());
+							if (Marker != nullptr) UE_LOG(LogMarkerManager, Display, TEXT("Created: %s"), *Marker->ToString());
 						}
 					}
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("GetRecords error - Record does not have a device_id or created_timestamp"));
+					UE_LOG(LogMarkerManager, Warning, TEXT("GetRecords error - Record does not have a device_id or created_timestamp"));
 					break;
 				}
 			}
@@ -348,7 +349,7 @@ auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime Las
 			// get timestamp data
 			Aws::DynamoDB::Model::AttributeValue TimestampValue = Item.at(SortKeyAttributeNameAws);
 			FDateTime Timestamp = FDateTime::FromUnixTimestamp(std::atoi(TimestampValue.GetS().c_str()));
-			UE_LOG(LogTemp, Warning, TEXT("Timestamp: %s"), *Timestamp.ToIso8601());
+			UE_LOG(LogMarkerManager, Display, TEXT("Timestamp: %s"), *Timestamp.ToIso8601());
 
 			if (Timestamp > LastKnownTimestamp)
 			{
@@ -361,7 +362,7 @@ auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime Las
 			}
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Failed to query items: %s"), *FString(Result.GetError().GetMessage().c_str()));
+	UE_LOG(LogMarkerManager, Warning, TEXT("Failed to query items: %s"), *FString(Result.GetError().GetMessage().c_str()));
 	return FVector::ZeroVector;
 }
 
@@ -369,12 +370,12 @@ ALocationMarker* UMarkerManager::SpawnAndInitializeMarker(const FLocationTs Loca
 {
 	if (SpawnedLocationMarkers.Contains(DeviceID))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Cannot create marker with ID %s because it already exists"), *DeviceID);
+		UE_LOG(LogMarkerManager, Warning, TEXT("Cannot create marker with ID %s because it already exists"), *DeviceID);
 		return nullptr;
 	}
 	if (LocationTs.UECoordinate == FVector::ZeroVector)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Marker with ID %s cannot be created because the location is a zero vector"), *DeviceID);
+		UE_LOG(LogMarkerManager, Warning, TEXT("Marker with ID %s cannot be created because the location is a zero vector"), *DeviceID);
 		return nullptr;
 	}
 	
@@ -394,7 +395,7 @@ ALocationMarker* UMarkerManager::SpawnAndInitializeMarker(const FLocationTs Loca
 		default:
 			return nullptr;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Creating marker with ID %s, %s"), *DeviceID, *LocationTs.ToString());
+	UE_LOG(LogMarkerManager, Display, TEXT("Creating marker with ID %s, %s"), *DeviceID, *LocationTs.ToString());
 
 	if (MarkerActor != nullptr)
 	{
@@ -410,7 +411,7 @@ ALocationMarker* UMarkerManager::SpawnAndInitializeMarker(const FLocationTs Loca
 			return InitializeMarker(Marker, DeviceID, LocationTs);
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Error: Could not cast LocationMarker to desired type."));
+	UE_LOG(LogMarkerManager, Warning, TEXT("Error: Could not cast LocationMarker to desired type."));
 	return nullptr;
 }
 
@@ -419,10 +420,10 @@ ALocationMarker* UMarkerManager::InitializeMarker(ALocationMarker* Marker, FStri
 	Marker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
 	Marker->DeviceID = DeviceID;
 	Marker->LocationTs = LocationTs;
-	UE_LOG(LogTemp, Warning, TEXT("Created %s"), *Marker->ToString());
+	UE_LOG(LogMarkerManager, Display, TEXT("Created %s"), *Marker->ToString());
 			
 	SpawnedLocationMarkers.Add(DeviceID, Marker);
-	UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), SpawnedLocationMarkers.Num());
+	UE_LOG(LogMarkerManager, Display, TEXT("%d data points stored"), SpawnedLocationMarkers.Num());
 	return Marker;
 }
 
@@ -454,7 +455,7 @@ bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 	{
 		return true;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Put item failed: %s"), *FString(Outcome.GetError().GetMessage().c_str()));
+	UE_LOG(LogMarkerManager, Warning, TEXT("Put item failed: %s"), *FString(Outcome.GetError().GetMessage().c_str()));
 	return false;
 }
 
@@ -466,7 +467,7 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 	if (Outcome.IsSuccess())
 	{
 		Aws::DynamoDB::Model::ScanResult Result = Outcome.GetResult();
-		UE_LOG(LogTemp, Warning, TEXT("DynamoDB Scan Request success: %d items"), Result.GetCount());
+		UE_LOG(LogMarkerManager, Display, TEXT("DynamoDB Scan Request success: %d items"), Result.GetCount());
 		TMap<FString, FJsonObject*> DynamicMarkers;
 
 		for (auto Pairs : Result.GetItems())
@@ -505,7 +506,7 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 				{
 					// pass the new data to the marker
 					DynamicMarker->AddLocationTs(LocationTs);
-					UE_LOG(LogTemp, Warning, TEXT("Added new location %s for Dynamic marker %s"),
+					UE_LOG(LogMarkerManager, Display, TEXT("Added new location %s for Dynamic marker %s"),
 						*LocationTs.ToString(),
 						*Marker->ToString());
 				}
@@ -513,13 +514,13 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 			{
 				// spawn dynamic marker only if AllMarkers doesn't contain the device ID
 				Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
-				UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s"), *Marker->GetName());
+				UE_LOG(LogMarkerManager, Display, TEXT("Created Dynamic Marker: %s"), *Marker->GetName());
 			}
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("DynamoDB Scan Request failed: %s"),
+		UE_LOG(LogMarkerManager, Warning, TEXT("DynamoDB Scan Request failed: %s"),
 		       *FString(Outcome.GetError().GetMessage().c_str()));
 	}
 }
@@ -531,10 +532,10 @@ void UMarkerManager::DestroySelectedMarkers()
 		ALocationMarker* Marker = It.Value();
 		if (Marker != nullptr)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("%s"), *Marker->ToString());
+			UE_LOG(LogMarkerManager, Display, TEXT("%s"), *Marker->ToString());
 			if (Marker->Selected == true)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Destroying: %s"), *Marker->ToString());
+				UE_LOG(LogMarkerManager, Display, TEXT("Destroying: %s"), *Marker->ToString());
 				Marker->Destroy();
 			}
 		}
@@ -545,13 +546,13 @@ void UMarkerManager::DeleteMarker(const FString DeviceID, const FDateTime Timest
 {
 	if (SpawnedLocationMarkers.Contains(DeviceID))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Removing from TMap: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
+		UE_LOG(LogMarkerManager, Display, TEXT("Removing from TMap: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
 		SpawnedLocationMarkers.FindAndRemoveChecked(DeviceID);
 	}
 
 	if (DeleteFromDB)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Deleting from DB: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
+		UE_LOG(LogMarkerManager, Display, TEXT("Deleting from DB: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
 		DeleteMarkerFromDynamoDB(DeviceID, Timestamp);
 	}
 }
@@ -588,15 +589,15 @@ TArray<ALocationMarker*> UMarkerManager::GetActiveMarkers() const
 			ActiveMarkers.Add(ActiveMarker);
 			NumActive++;
 			if (const ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(ActiveMarker)) {
-				UE_LOG(LogTemp, Warning, TEXT("ALIVE: %s"), *DynamicMarker->ToString());
+				UE_LOG(LogMarkerManager, Display, TEXT("ALIVE: %s"), *DynamicMarker->ToString());
 			} else if (const ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(ActiveMarker)) {
-				UE_LOG(LogTemp, Warning, TEXT("ALIVE: %s"), *TemporaryMarker->ToString());
+				UE_LOG(LogMarkerManager, Display, TEXT("ALIVE: %s"), *TemporaryMarker->ToString());
 			} else if (const ALocationMarker* Marker = Cast<ALocationMarker>(ActiveMarker)) {
-				UE_LOG(LogTemp, Warning, TEXT("ALIVE: %s"), *Marker->ToString());
+				UE_LOG(LogMarkerManager, Display, TEXT("ALIVE: %s"), *Marker->ToString());
 			}
 		}
 	} 
-	UE_LOG(LogTemp, Warning,
+	UE_LOG(LogMarkerManager, Display,
 	       TEXT("There are %d active markers in this level, and %d pending destruction."),
 		   ActiveMarkers.Num(),
 		   AllMarkers.Num() - ActiveMarkers.Num());

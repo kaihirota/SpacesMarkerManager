@@ -17,16 +17,16 @@ struct FLocationTs
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Util")
 	FDateTime Timestamp;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Util")
 	FVector UECoordinate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Util")
 	FVector Wgs84Coordinate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Util")
 	FVector EcefCoordinate;
 	
 	FLocationTs(const FDateTime DateTime, const FVector InGameLocation, const FVector Wgs84Location, const FVector EcefLocation)

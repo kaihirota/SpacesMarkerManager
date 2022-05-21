@@ -40,7 +40,7 @@ struct FAwsString
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, Category="Spaces|Util")
 	FString Fstring;
 
 	Aws::String AwsString;

@@ -8,33 +8,36 @@
 #include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
 #include "MarkerManager.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogMarkerManager, Display, All);
+
 class ALocationMarker;
+
 UCLASS(Blueprintable, BlueprintType)
 class SPACESMARKERMANAGER_API UMarkerManager : public UGameInstance
 {
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces|MarkerManager")
 	int NumberOfEmptyShards = 0;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces|MarkerManager")
 	int NumberOfEmptyShardsLimit = 5;
 	
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces|MarkerManager")
 	bool Listening = false;
 	
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces|MarkerManager")
 	FString ShardIterator = "";
 
 	/* Length between each successive call to DynamoDBStreamsListen() */
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category="Spaces|MarkerManager")
 	double PollingInterval = 2.0f;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces|MarkerManager")
 	FTimerHandle TimerHandle;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces|MarkerManager")
 	ACesiumGeoreference* Georeference;
 
 protected:
@@ -63,7 +66,7 @@ public:
 	* @param DeviceID
 	* @returns Marker [ALocationMarker] 
 	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	ALocationMarker* SpawnAndInitializeMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID);
 
 	ALocationMarker* InitializeMarker(ALocationMarker* Marker, FString DeviceID, FLocationTs LocationTs);
@@ -75,14 +78,14 @@ public:
 	* @param Marker
 	* @returns Success [bool] True if insert succeeded, else False.
 	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	bool CreateMarkerInDB(const ALocationMarker* Marker);
 
 	/**
 	* Fetch all markers from DynamoDB and spawn them in the world.
 	* For DynamicMarkers, only one marker will be spawned for the most recent known location.
 	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	void GetAllMarkersFromDynamoDB();
 
 	/**
@@ -92,13 +95,13 @@ public:
 	* @param LastKnownTimestamp
 	* @returns LatestLocation [FVector]
 	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker")
 	FVector GetLatestRecord(const FString DeviceID, const FDateTime LastKnownTimestamp);
 
 	/**
 	* Destroy all the spawned markers that are currently selected.
 	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker")
 	void DestroySelectedMarkers();
 
 	/**
@@ -111,7 +114,7 @@ public:
 	* @param Timestamp [FDateTime]
 	* @param DeleteFromDB [bool]
 	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	void DeleteMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB);
 
 	/**
@@ -120,7 +123,7 @@ public:
 	 * @param DeviceID
 	 * @param Timestamp
 	 **/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	bool DeleteMarkerFromDynamoDB(const FString DeviceID, const FDateTime Timestamp) const;
 
 	/****************   DynamoDB Streams   ******************/
@@ -131,7 +134,7 @@ public:
 	 * Internally it uses DynamoDBStreamsListenOnce().
 	 * Table name must be configured in Settings.h.
 	 **/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	void DynamoDBStreamsListen();
 
 	/**
@@ -141,7 +144,7 @@ public:
 	 * it will iterate through the first stream found.
 	 * Uses DynamoDB Stream LATEST iterator type.
 	 **/
-	// UFUNCTION(BlueprintCallable, Category="Spaces")
+	// UFUNCTION(BlueprintCallable, Category="Spaces|Marker")
 	void DynamoDBStreamsListenOnce();
 
 	/**
@@ -150,14 +153,14 @@ public:
 	 * Internally this calls ScanStreams() on each Stream associated with a given table.
 	 * @param TableName
 	 **/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	void DynamoDBStreamsReplay(FString TableName);
 
 	/**
 	 * @param TableName
 	 * @returns List of stream ARNs for the given DynamoDB table.
 	 **/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	TArray<FAwsString> GetStreams(const FAwsString TableName);
 
 	/**
@@ -170,14 +173,14 @@ public:
 	* @param StreamArn
 	* @param TReplayStartFrom Oldest threshold timestamp from which to start the replay from.
 \	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	void ScanStream(const FAwsString StreamArn, const FDateTime TReplayStartFrom);
 
 	/**
 	 * Given a stream ARN, get a list of shards in the stream.
 	 * @param StreamArn
 	 **/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	TArray<FAwsString> GetShards(const FAwsString StreamArn) const;
 
 	/**
@@ -188,7 +191,7 @@ public:
 	* @param ShardIteratorType
 	* @param TReplayStartFrom For TRIM_HORIZON shard iterator, this can be specified as a filter to skip the oldest records.
 	*/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	void IterateShard(const FAwsString StreamArn,
 					  const FAwsString ShardId,
 	                  const FDynamoDBStreamShardIteratorType ShardIteratorType,
@@ -210,7 +213,7 @@ public:
 	* @param Elev [double]
 	* @return FLocationTs
 	*/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	FLocationTs WrapLocationTs(const FDateTime Timestamp, const double Lon, const double Lat, const double Elev) const;
 	FLocationTs WrapLocationTs(FDateTime Timestamp, FVector Coordinate) const;
 
@@ -218,6 +221,6 @@ public:
 	* Return a list of location markers currently existing in the UE World.
 	* @return TArray<ALocationMarker*>
 	*/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	TArray<ALocationMarker*> GetActiveMarkers() const;
 };

@@ -10,6 +10,8 @@
 #include "LocationMarker.generated.h"
 
 
+DECLARE_LOG_CATEGORY_EXTERN(LogLocationMarker, Display, All);
+
 UCLASS(BlueprintType, Blueprintable)
 class SPACESMARKERMANAGER_API ALocationMarker : public AActor
 {
@@ -22,44 +24,44 @@ public:
 	FString ClassName = StaticMarkerName;
 
 	// appearance
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Static")
 	FColor BaseColor = FColor::Turquoise;
 
 	/* Static Mesh Component */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker|Static")
 	UStaticMeshComponent* StaticMeshComp;
 
 	/* Sphere Component (not static mesh) */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker|Static")
 	class USphereComponent* SphereComp;
 
 	/* Emissive material */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker|Static")
 	UMaterialInterface* EmissiveMatInterface;
 
 	/* Emissive material instance */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Static")
 	UMaterialInstanceDynamic* DynamicMaterial;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Static")
 	UCesiumGlobeAnchorComponent* CesiumGlobeAnchor;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Spaces|Marker|Static")
 	float DefaultRadius = 200.0f;
 	
 	// properties
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker|Static")
 	FString DeviceID;
 	
 	/* Location and timestamp */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker|Static")
 	FLocationTs LocationTs;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker|Static")
 	bool Selected = false;
 
 	/* When DeleteFromDBOnDestroy is True, the marker will be deleted from the database upon destruction*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Static")
 	bool DeleteFromDBOnDestroy = false;
 
 	DECLARE_DELEGATE_ThreeParams(FLocationMarkerOnDelete, FString, FDateTime, bool);
@@ -83,25 +85,25 @@ public:
 	* Select or unselect this marker
 	* @returns Selected [bool] The value of the selected state 
 	**/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Static")
 	bool ToggleSelection();
 	
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Static")
 	FLinearColor GetColor() const;
 	
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Static")
 	void SetColor(const FLinearColor Color) const;
 
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Static")
 	float GetOpacity() const;
 	
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Static")
 	void SetOpacity(float OpacityVal) const;
 	
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Static")
 	virtual FString ToString() const;
 
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Static")
 	virtual FString ToJsonString() const;
 
 	virtual TSharedRef<FJsonObject> ToJsonObject() const;

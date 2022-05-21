@@ -6,6 +6,8 @@
 #include "LocationMarker.h"
 #include "TemporaryMarker.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogTemporaryMarker, Display, All);
+
 UCLASS(BlueprintType, Blueprintable)
 class SPACESMARKERMANAGER_API ATemporaryMarker : public ALocationMarker
 {
@@ -15,22 +17,22 @@ public:
 	// Sets default values for this actor's properties
 	ATemporaryMarker();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
 	FColor TemporaryMarkerColor = FColor::Red;
 
 	/* Initial Counter value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
 	float InitialCounter = 1000.0f;
 
 	/* Current Counter value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
 	int Counter = InitialCounter;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
 	int CounterTickSize = 1;
 
 	/* Maximum scale */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
 	float MaxScale = 2.0f;
 
 protected:
@@ -41,9 +43,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Temporary")
 	void IncrementCounter(int Count);
 
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Temporary")
 	void DecrementCounter(int Count);
 };

@@ -5,6 +5,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/EngineTypes.h"
 
+DEFINE_LOG_CATEGORY(LogLocationMarker);
+
 ALocationMarker::ALocationMarker()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -49,7 +51,7 @@ bool ALocationMarker::ToggleSelection()
 	Selected = !Selected;
 	if (Selected) SetColor(FColor::Red);
 	else SetColor(BaseColor);
-	UE_LOG(LogTemp, Log, TEXT("%s: %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *ToString());
+	UE_LOG(LogLocationMarker, Display, TEXT("%s: %s"), Selected ? TEXT("Selected") : TEXT("Unselected"), *ToString());
 	return Selected;
 }
 
@@ -120,7 +122,7 @@ void ALocationMarker::BeginPlay()
 
 void ALocationMarker::BeginDestroy()
 {
-	UE_LOG(LogTemp, Warning, TEXT("BeginDestroy: %s"), *DeviceID);
+	UE_LOG(LogLocationMarker, Display, TEXT("BeginDestroy: %s"), *DeviceID);
 	Super::BeginDestroy();
 	if (MarkerOnDelete.IsBound()) MarkerOnDelete.Execute(DeviceID, LocationTs.Timestamp, DeleteFromDBOnDestroy);
 }

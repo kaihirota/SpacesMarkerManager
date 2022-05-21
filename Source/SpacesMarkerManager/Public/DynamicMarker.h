@@ -6,6 +6,7 @@
 #include "TemporaryMarker.h"
 #include "DynamicMarker.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogDynamicMarker, Display, All);
 
 UCLASS(BlueprintType, Blueprintable)
 class SPACESMARKERMANAGER_API ADynamicMarker : public ATemporaryMarker
@@ -15,16 +16,16 @@ class SPACESMARKERMANAGER_API ADynamicMarker : public ATemporaryMarker
 public:
 	ADynamicMarker();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Dynamic")
 	FColor DynamicMarkerColor = FColor::Purple;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker|Dynamic")
 	int idx = 0;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Spaces|Marker|Dynamic")
 	float InterpolationsPerSecond = 1000.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Dynamic")
 	TArray<FLocationTs> HistoryArr; // heap
 
 protected:
@@ -36,6 +37,6 @@ public:
 	virtual FString ToString() const override;
 	virtual FString ToJsonString() const override;
 
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Dynamic")
 	void AddLocationTs(const FLocationTs Location);
 };
