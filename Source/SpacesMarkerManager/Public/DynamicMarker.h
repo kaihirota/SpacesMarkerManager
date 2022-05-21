@@ -15,8 +15,6 @@ public:
 	// Sets default values for this actor's properties
 	ADynamicMarker();
 
-	FString ClassName = FString("DynamicMarker");
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor DynamicMarkerColor = FColor::Purple;
 

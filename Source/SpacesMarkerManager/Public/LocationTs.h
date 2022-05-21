@@ -70,15 +70,19 @@ struct FLocationTs
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	FVector Wgs84Coordinate;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	FVector EcefCoordinate;
+
 	FLocationTs()
 	{
 	}
 
-	FLocationTs(const FDateTime DateTime, const FVector Wgs84Location, const FVector InGameLocation)
+	FLocationTs(const FDateTime DateTime, const FVector InGameLocation, const FVector Wgs84Location, const FVector EcefLocation)
 	{
 		Timestamp = DateTime;
-		Wgs84Coordinate = Wgs84Location;
 		UECoordinate = InGameLocation;
+		Wgs84Coordinate = Wgs84Location;
+		EcefCoordinate = EcefLocation;
 	}
 	
 	friend bool operator < (const FLocationTs& x, const FLocationTs& y)
@@ -91,7 +95,8 @@ struct FLocationTs
 		TArray<FStringFormatArg> Args;
 		Args.Add(FStringFormatArg(UECoordinate.ToString()));
 		Args.Add(FStringFormatArg(Wgs84Coordinate.ToString()));
+		Args.Add(FStringFormatArg(EcefCoordinate.ToString()));
 		Args.Add(FStringFormatArg(Timestamp.ToIso8601()));
-		return FString::Format(TEXT("(UE={0}, Wgs84={1}, Timestamp='{2}')"), Args);
+		return FString::Format(TEXT("(UE={0}, WGS84={1}, ECEF={2}, Timestamp='{3}')"), Args);
 	}
 };

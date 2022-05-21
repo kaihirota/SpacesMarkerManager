@@ -36,12 +36,15 @@ void UMarkerManager::Init()
 	UE_LOG(LogTemp, Warning, TEXT("DynamoDB client ready"));
 
 	StreamsClient = new Aws::DynamoDBStreams::DynamoDBStreamsClient(Credentials, Config);
-	UE_LOG(LogTemp, Warning, TEXT("DynamoDB Streams ready"));
+	UE_LOG(LogTemp, Warning, TEXT("DynamoDB Streams client ready"));
 
 	UE_LOG(LogTemp, Warning, TEXT("Initialized AWS SDK."));
-	
-	this->Georeference = ACesiumGeoreference::GetDefaultGeoreference(this);
-	UE_LOG(LogTemp, Warning, TEXT("Initialized CesiumGeoreference."));
+
+	if (UseCesiumGeoreference)
+	{
+		this->Georeference = ACesiumGeoreference::GetDefaultGeoreference(this);
+		UE_LOG(LogTemp, Warning, TEXT("Initialized CesiumGeoreference."));
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("Initialized MarkerManager GameInstance."));
 }
@@ -251,28 +254,41 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 					const FLocationTs LocationTs = WrapLocationTs(Timestamp, Lon, Lat, Elev);
 					
 					ALocationMarker* Marker;
-					if (MarkerType == ELocationMarkerType::Dynamic && LocationMarkers.Contains(DeviceID))
+					if (MarkerType == ELocationMarkerType::Dynamic)
 					{
-						// dynamic marker with matching device id already exists
-						Marker = *LocationMarkers.Find(DeviceID);
-						if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
+						if (LocationMarkers.Contains(DeviceID))
 						{
-							// pass the new data to the marker
-							DynamicMarker->AddLocationTs(LocationTs);
-							UE_LOG(LogTemp, Warning, TEXT("Added new location %s for Dynamic marker %s"),
-								*LocationTs.ToString(),
-								*Marker->ToString());
+							// dynamic marker with matching device id already exists
+							Marker = *LocationMarkers.Find(DeviceID);
+							if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
+							{
+								// pass the new data to the marker
+								DynamicMarker->AddLocationTs(LocationTs);
+								UE_LOG(LogTemp, Warning, TEXT("Added new location %s for Dynamic marker %s"),
+									*LocationTs.ToString(),
+									*Marker->ToString());
+							}
+						} else
+						{
+							// spawn marker only if AllMarkers doesn't contain the device ID
+							Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
+							if (Marker != nullptr)
+							{
+								UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s"), *Marker->ToString());
+							} else
+							{
+								UE_LOG(LogTemp, Warning, TEXT("Failed to create Dynamic Marker: %s"), *DeviceID);
+							}
 						}
 					} else
 					{
-						// spawn dynamic marker only if AllMarkers doesn't contain the device ID
-						Marker = CreateMarker(LocationTs, MarkerType, DeviceID);
-						if (Marker != nullptr)
+						// for static and temporary marker, spawn only if device ID is new
+						// in other words, static and temp markers are assumed to be locked in position
+						if (!LocationMarkers.Contains(DeviceID))
 						{
-							UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s"), *Marker->ToString());
-						} else
-						{
-							UE_LOG(LogTemp, Warning, TEXT("Failed to create Dynamic Marker: %s"), *DeviceID);
+							// spawn marker only if AllMarkers doesn't contain the device ID
+							Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
+							if (Marker != nullptr) UE_LOG(LogTemp, Warning, TEXT("Created: %s"), *Marker->ToString());
 						}
 					}
 				}
@@ -288,17 +304,24 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 
 FLocationTs UMarkerManager::WrapLocationTs(const FDateTime Timestamp, const double Lon, const double Lat, const double Elev) const
 {
-	const FVector Wgs84Coordinate = FVector(Lon, Lat, Elev);
-	FVector InGameCoordinate;
+	FVector InGameCoordinate, EcefCoordinate, Wgs84Coordinate = FVector(Lon, Lat, Elev);
 	if (this->Georeference && UseCesiumGeoreference)
 	{
-		const glm::dvec3 UECoords = this->Georeference->TransformLongitudeLatitudeHeightToUnreal(glm::dvec3(Lon, Lat, Elev));
-		InGameCoordinate = FVector(UECoords.x, UECoords.y, UECoords.z);
+		const glm::dvec3 UECoord = this->Georeference->TransformLongitudeLatitudeHeightToUnreal(glm::dvec3(Lon, Lat, Elev));
+		InGameCoordinate = FVector(UECoord.x, UECoord.y, UECoord.z);
+
+		const glm::dvec3 EcEfCoord = this->Georeference->TransformLongitudeLatitudeHeightToEcef(glm::dvec3(Lon, Lat, Elev));
+		EcefCoordinate = FVector(EcEfCoord.x, EcEfCoord.y, EcEfCoord.z);
+		return FLocationTs(Timestamp, InGameCoordinate, Wgs84Coordinate, EcefCoordinate);
 	} else
 	{
-		InGameCoordinate = Wgs84Coordinate;
+		return FLocationTs(Timestamp, Wgs84Coordinate, FVector::ZeroVector, FVector::ZeroVector);
 	}
-	return FLocationTs(Timestamp, Wgs84Coordinate, InGameCoordinate);
+}
+
+FLocationTs UMarkerManager::WrapLocationTs(const FDateTime Timestamp, const FVector Coordinate) const
+{
+	return WrapLocationTs(Timestamp, Coordinate.X, Coordinate.Y, Coordinate.Z);
 }
 
 auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime LastKnownTimestamp) -> FVector
@@ -342,11 +365,16 @@ auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime Las
 	return FVector::ZeroVector;
 }
 
-ALocationMarker* UMarkerManager::CreateMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID)
+ALocationMarker* UMarkerManager::SpawnAndInitializeMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID)
 {
 	if (LocationMarkers.Contains(DeviceID))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Cannot create marker with ID %s because it already exists"), *DeviceID);
+		return nullptr;
+	}
+	if (LocationTs.UECoordinate == FVector::ZeroVector)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Marker with ID %s cannot be created because the location is a zero vector"), *DeviceID);
 		return nullptr;
 	}
 	
@@ -354,44 +382,48 @@ ALocationMarker* UMarkerManager::CreateMarker(const FLocationTs LocationTs, cons
 
 	switch (MarkerType)
 	{
-		case ELocationMarkerType::Static:
-			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
+		case ELocationMarkerType::Dynamic:
+			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
 			break;
 		case ELocationMarkerType::Temporary:
 			MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
 			break;
-		case ELocationMarkerType::Dynamic:
-			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
+		case ELocationMarkerType::Static:
+			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
 			break;
 		default:
 			return nullptr;
 	}
+	UE_LOG(LogTemp, Warning, TEXT("Creating marker with ID %s, %s"), *DeviceID, *LocationTs.ToString());
 
 	if (MarkerActor != nullptr)
 	{
 		/* Bind the Marker's BeginDestroy with deletion from database. Do this only for static location markers. */
-		if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor)) {
-			DynamicMarker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
-		} else if (ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(MarkerActor)) {
-			TemporaryMarker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
+		if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor))
+		{
+			return InitializeMarker(DynamicMarker, DeviceID, LocationTs);
+		} else if (ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(MarkerActor))
+		{
+			return InitializeMarker(TemporaryMarker, DeviceID, LocationTs);
 		} else if (ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor))
 		{
-			Marker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
-		}
-
-		if (ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor))
-		{
-			Marker->LocationTs = LocationTs;
-			Marker->DeviceID = DeviceID;
-			UE_LOG(LogTemp, Warning, TEXT("Created %s"), *Marker->ToString());
-			
-			LocationMarkers.Add(DeviceID, Marker);
-			UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), LocationMarkers.Num());
-			return Marker;
+			return InitializeMarker(Marker, DeviceID, LocationTs);
 		}
 	}
 	UE_LOG(LogTemp, Warning, TEXT("Error: Could not cast LocationMarker to desired type."));
 	return nullptr;
+}
+
+ALocationMarker* UMarkerManager::InitializeMarker(ALocationMarker* Marker, FString DeviceID, FLocationTs LocationTs)
+{
+	Marker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
+	Marker->DeviceID = DeviceID;
+	Marker->LocationTs = LocationTs;
+	UE_LOG(LogTemp, Warning, TEXT("Created %s"), *Marker->ToString());
+			
+	LocationMarkers.Add(DeviceID, Marker);
+	UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), LocationMarkers.Num());
+	return Marker;
 }
 
 bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
@@ -480,8 +512,8 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 			} else
 			{
 				// spawn dynamic marker only if AllMarkers doesn't contain the device ID
-				Marker = CreateMarker(LocationTs, MarkerType, DeviceID);
-				UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s %s"), *Marker->GetName(), *Marker->ToString());
+				Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
+				UE_LOG(LogTemp, Warning, TEXT("Created Dynamic Marker: %s"), *Marker->GetName());
 			}
 		}
 	}
@@ -541,4 +573,32 @@ bool UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDat
 	const Aws::DynamoDB::Model::DeleteItemOutcome Outcome = DynamoClient->DeleteItem(Request);
 	const bool Success = Outcome.IsSuccess();
 	return Success;
+}
+
+TArray<ALocationMarker*> UMarkerManager::GetActiveMarkers() const
+{
+	TArray<ALocationMarker*> AllMarkers;
+	TArray<ALocationMarker*> ActiveMarkers;
+	LocationMarkers.GenerateValueArray(AllMarkers);
+	int NumActive = 0;
+	for (ALocationMarker* ActiveMarker : AllMarkers)
+	{
+		if (!ActiveMarker->IsActorBeingDestroyed())
+		{
+			ActiveMarkers.Add(ActiveMarker);
+			NumActive++;
+			if (const ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(ActiveMarker)) {
+				UE_LOG(LogTemp, Warning, TEXT("ALIVE: %s"), *DynamicMarker->ToString());
+			} else if (const ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(ActiveMarker)) {
+				UE_LOG(LogTemp, Warning, TEXT("ALIVE: %s"), *TemporaryMarker->ToString());
+			} else if (const ALocationMarker* Marker = Cast<ALocationMarker>(ActiveMarker)) {
+				UE_LOG(LogTemp, Warning, TEXT("ALIVE: %s"), *Marker->ToString());
+			}
+		}
+	} 
+	UE_LOG(LogTemp, Warning,
+	       TEXT("There are %d active markers in this level, and %d pending destruction."),
+		   ActiveMarkers.Num(),
+		   AllMarkers.Num() - ActiveMarkers.Num());
+	return ActiveMarkers;
 }

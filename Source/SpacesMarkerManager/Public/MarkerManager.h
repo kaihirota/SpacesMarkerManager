@@ -48,14 +48,17 @@ public:
 	virtual void Shutdown() override;
 
 	/**
-	* Spawn a marker with the provided parameters and save a references in LocationMarkers
+	* Spawn a marker of specified type, initialized with the provided parameters.
+	* Using this function to spawn location markers will save a references in LocationMarkers
 	* @param LocationTs
 	* @param MarkerType
 	* @param DeviceID
 	* @returns Marker [ALocationMarker] 
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
-	ALocationMarker* CreateMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID);
+	ALocationMarker* SpawnAndInitializeMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID);
+
+	ALocationMarker* InitializeMarker(ALocationMarker* Marker, FString DeviceID, FLocationTs LocationTs);
 
 	/****************   DynamoDB   ******************/
 
@@ -177,5 +180,28 @@ public:
 
 	void ProcessDynamoDBStreamRecords(Aws::Vector<Aws::DynamoDBStreams::Model::Record> Records,
 	                                  FDateTime TReplayStartFrom);
+
+
+	/**
+	* Given timestamp and lon, lat, elevation in WGS84, return a wrapper object
+	* that contains WGS84, UE, ECEF coordinates, and the timestamp.
+	* If CesiumGeoReference is active and UseCesiumGeoreference is set to True in Settings.h file,
+	* this function will convert the given coordinates from Wgs84 Lon, Lat, Elevation to UE coordinate
+	* and store both of them in FLocationTs.
+	* @param Timestamp [FDateTime]
+	* @param Lon [double]
+	* @param Lat [double]
+	* @param Elev [double]
+	* @return FLocationTs
+	*/
+	UFUNCTION(BlueprintCallable, Category="Spaces")
 	FLocationTs WrapLocationTs(const FDateTime Timestamp, const double Lon, const double Lat, const double Elev) const;
+	FLocationTs WrapLocationTs(FDateTime Timestamp, FVector Coordinate) const;
+
+	/**
+	* Return a list of location markers currently existing in the UE World.
+	* @return TArray<ALocationMarker*>
+	*/
+	UFUNCTION(BlueprintCallable, Category="Spaces")
+	TArray<ALocationMarker*> GetActiveMarkers() const;
 };

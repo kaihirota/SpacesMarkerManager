@@ -15,8 +15,6 @@ public:
 	// Sets default values for this actor's properties
 	ATemporaryMarker();
 
-	FString ClassName = FString("TemporaryMarker");
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor DefaultColor = FColor::Red;
 

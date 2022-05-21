@@ -7,6 +7,7 @@ ATemporaryMarker::ATemporaryMarker()
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	SetColor(DefaultColor);
+	Super::ClassName = FString("TemporaryMarker");
 }
 
 // Called when the game starts or when spawned
