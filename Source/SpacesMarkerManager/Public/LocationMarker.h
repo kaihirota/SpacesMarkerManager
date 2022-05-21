@@ -13,47 +13,41 @@
 UCLASS(BlueprintType, Blueprintable)
 class SPACESMARKERMANAGER_API ALocationMarker : public AActor
 {
-public:
 	GENERATED_BODY()
 
+public:
 	// Sets default values for this actor's properties
 	ALocationMarker();
 
-	FString ClassName = FString("StaticMarker");
+	FString ClassName = StaticMarkerName;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
+	// appearance
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	FColor BaseColor = FColor::Turquoise;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
-	float DefaultRadius = 200.0f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
-	bool DeleteFromDBOnDestroy = false;
-
-	DECLARE_DELEGATE_ThreeParams(FLocationMarkerOnDelete, FString, FDateTime, bool);
-	FLocationMarkerOnDelete MarkerOnDelete;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
-	bool Selected = false;
-	
 	/* Static Mesh Component */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	UStaticMeshComponent* StaticMeshComp;
 
 	/* Sphere Component (not static mesh) */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	class USphereComponent* SphereComp;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
-	UCesiumGlobeAnchorComponent* CesiumGlobeAnchor;
-
 	/* Emissive material */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	UMaterialInterface* EmissiveMatInterface;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	/* Emissive material instance */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	UMaterialInstanceDynamic* DynamicMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	UCesiumGlobeAnchorComponent* CesiumGlobeAnchor;
 	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Spaces")
+	float DefaultRadius = 200.0f;
+	
+	// properties
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	FString DeviceID;
 	
@@ -61,6 +55,30 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
 	FLocationTs LocationTs;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	bool Selected = false;
+
+	/* When DeleteFromDBOnDestroy is True, the marker will be deleted from the database upon destruction*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	bool DeleteFromDBOnDestroy = false;
+
+	DECLARE_DELEGATE_ThreeParams(FLocationMarkerOnDelete, FString, FDateTime, bool);
+	FLocationMarkerOnDelete MarkerOnDelete;
+	
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+	
+	/* Called before destroying the object.
+	 * This is called immediately upon deciding to destroy the object,
+	 * to allow the object to begin an asynchronous cleanup process.
+	 */ 
+	virtual void BeginDestroy() override;
+
+public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+	
 	/**
 	* Select or unselect this marker
 	* @returns Selected [bool] The value of the selected state 
@@ -87,46 +105,35 @@ public:
 	virtual FString ToJsonString() const;
 
 	virtual TSharedRef<FJsonObject> ToJsonObject() const;
-
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-	
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-	// Called before destroying the object. 
-	// This is called immediately upon deciding to destroy the object, to allow the object to begin an asynchronous cleanup process.
-	virtual void BeginDestroy() override;
 };
 
 inline bool operator==(const ALocationMarker& Marker1, const ALocationMarker& Marker2)
 {
 	return (Marker1.DeviceID == Marker2.DeviceID &&
-		Marker1.LocationTs.Wgs84Coordinate == Marker1.LocationTs.Wgs84Coordinate &&
+		Marker1.LocationTs.UECoordinate == Marker1.LocationTs.UECoordinate &&
 		Marker1.LocationTs.Timestamp == Marker2.LocationTs.Timestamp);
 }
 
-inline uint32 GetTypeHash(const ALocationMarker& Thing)
-{
-	FString s = Thing.ToJsonString();
-	const uint32 Hash = FCrc::StrCrc32(*s, sizeof(s));
-	return Hash;
-}
-
-inline uint32 GetTypeHash(const FVector Coordinate, const FDateTime Timestamp, const FString DeviceID)
-{
-	const TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-
-	if (!DeviceID.IsEmpty()) JsonObject->SetStringField(PartitionKeyAttributeName, DeviceID);
-	else JsonObject->SetStringField(PartitionKeyAttributeName, FString(""));
-	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(Timestamp.ToUnixTimestamp()));
-	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(Coordinate.X));
-	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(Coordinate.Y));
-	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(Coordinate.Z));
-	FString OutputString;
-	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-	FJsonSerializer::Serialize(JsonObject, Writer);
-	const uint32 Hash = FCrc::StrCrc32(*OutputString, sizeof(OutputString));
-	return Hash;
-}
+// inline uint32 GetTypeHash(const ALocationMarker& Thing)
+// {
+// 	FString s = Thing.ToJsonString();
+// 	const uint32 Hash = FCrc::StrCrc32(*s, sizeof(s));
+// 	return Hash;
+// }
+//
+// inline uint32 GetTypeHash(const FVector Coordinate, const FDateTime Timestamp, const FString DeviceID)
+// {
+// 	const TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+//
+// 	if (!DeviceID.IsEmpty()) JsonObject->SetStringField(PartitionKeyAttributeName, DeviceID);
+// 	else JsonObject->SetStringField(PartitionKeyAttributeName, FString(""));
+// 	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(Timestamp.ToUnixTimestamp()));
+// 	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(Coordinate.X));
+// 	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(Coordinate.Y));
+// 	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(Coordinate.Z));
+// 	FString OutputString;
+// 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+// 	FJsonSerializer::Serialize(JsonObject, Writer);
+// 	const uint32 Hash = FCrc::StrCrc32(*OutputString, sizeof(OutputString));
+// 	return Hash;
+// }

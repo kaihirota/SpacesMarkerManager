@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "CesiumGeoreference.h"
-#include "LocationMarkerType.h"
+#include "Utils.h"
 #include "LocationTs.h"
 #include "aws/dynamodb/DynamoDBClient.h"
 #include "aws/dynamodbstreams/DynamoDBStreamsClient.h"
@@ -13,29 +13,23 @@ UCLASS(Blueprintable, BlueprintType)
 class SPACESMARKERMANAGER_API UMarkerManager : public UGameInstance
 {
 	GENERATED_BODY()
-
+	
 public:
-	// Maps from DeviceID to LocationMarker
-	TMap<FString, ALocationMarker*> LocationMarkers;
-	Aws::DynamoDB::DynamoDBClient* DynamoClient;
-	Aws::DynamoDBStreams::DynamoDBStreamsClient* StreamsClient;
-
-	// DynamoDB Streams
-	Aws::String LastEvaluatedShardId;
-	Aws::String LastEvaluatedSequenceNumber;
-	Aws::String LastEvaluatedStreamArn;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
-	FString ShardIterator = "";
-
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
 	int NumberOfEmptyShards = 0;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
 	int NumberOfEmptyShardsLimit = 5;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
 	bool Listening = false;
+	
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Spaces")
+	FString ShardIterator = "";
+
+	/* Length between each successive call to DynamoDBStreamsListen() */
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category="Spaces")
+	double PollingInterval = 2.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
 	FTimerHandle TimerHandle;
@@ -43,13 +37,27 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Spaces")
 	ACesiumGeoreference* Georeference;
 
-public:
+protected:
+	// Maps from DeviceID to LocationMarker
+	TMap<FString, ALocationMarker*> SpawnedLocationMarkers;
+	
+	Aws::DynamoDB::DynamoDBClient* DynamoClient;
+	Aws::DynamoDBStreams::DynamoDBStreamsClient* DynamoDBStreamsClient;
+
+	// DynamoDB Streams
+	Aws::String LastEvaluatedShardId;
+	Aws::String LastEvaluatedSequenceNumber;
+	Aws::String LastEvaluatedStreamArn;
+
 	virtual void Init() override;
 	virtual void Shutdown() override;
+	
+public:
 
 	/**
 	* Spawn a marker of specified type, initialized with the provided parameters.
-	* Using this function to spawn location markers will save a references in LocationMarkers
+	* Using this function to spawn location markers will save a references in SpawnedLocationMarkers.
+	* Internally, it uses InitializeMarker().
 	* @param LocationTs
 	* @param MarkerType
 	* @param DeviceID
@@ -77,7 +85,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void GetAllMarkersFromDynamoDB();
 
-
 	/**
 	* Given a DeviceID, query DynamoDB for the last known location.
 	* If the last known location from DynamoDB is the same as LastKnownTimestamp, zero vector will be returned
@@ -95,8 +102,11 @@ public:
 	void DestroySelectedMarkers();
 
 	/**
-	* Delete the marker from LocationMarkers.
-	* If DeleteFromDB is true, the marker will also be deleted from DynamoDB
+	* Delete a single marker with matching attributes from SpawnedLocationMarkers.
+	* If DeleteFromDB is true, the marker will also be deleted from DynamoDB.
+	* This method is delegated to location markers, and called automatically
+	* in BeginDestroy(). If DeleteFromDB is False, the marker will be destroyed
+	* and removed from SpawnedLocationMarkers, but not deleted from DynamoDB.
 	* @param DeviceID [FString]
 	* @param Timestamp [FDateTime]
 	* @param DeleteFromDB [bool]
@@ -105,7 +115,8 @@ public:
 	void DeleteMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB);
 
 	/**
-	 * Deletes a marker with matching attributes.
+	 * Deletes a marker with matching attributes from DynamoDB.
+	 * Cannot delete a record without both parameters, since they are both keys.
 	 * @param DeviceID
 	 * @param Timestamp
 	 **/
@@ -115,23 +126,28 @@ public:
 	/****************   DynamoDB Streams   ******************/
 
 	/**
-	 * Start polling DynamoDB Streams at some specified interval.
+	 * Start polling DynamoDB Streams at interval specified by PollingInterval.
+	 * Call this method to begin / end listening to the Streams.
+	 * Internally it uses DynamoDBStreamsListenOnce().
+	 * Table name must be configured in Settings.h.
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
 	void DynamoDBStreamsListen();
 
 	/**
-	 * Function called repeatedly to poll DynamoDB Streams for latest events.
+	 * This function is called repeatedly to poll DynamoDB Streams for latest events.
 	 * At each invocation, it obtains a list of all the DynamoDB Streams
 	 * associated with the configured DynamoDB table. If there is one or more stream,
 	 * it will iterate through the first stream found.
 	 * Uses DynamoDB Stream LATEST iterator type.
 	 **/
-	UFUNCTION(BlueprintCallable, Category="Spaces")
+	// UFUNCTION(BlueprintCallable, Category="Spaces")
 	void DynamoDBStreamsListenOnce();
 
 	/**
-	 * Given a DynamoDB table, which may be associated with one or more streams, replay the events in the last 24 hours.
+	 * Given a DynamoDB table, which may be associated with one or more streams,
+	 * replay all the insert events in the last 24 hours.
+	 * Internally this calls ScanStreams() on each Stream associated with a given table.
 	 * @param TableName
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
@@ -139,7 +155,7 @@ public:
 
 	/**
 	 * @param TableName
-	 * @returns List of stream ARNs for all the associated streams.
+	 * @returns List of stream ARNs for the given DynamoDB table.
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Spaces")
 	TArray<FAwsString> GetStreams(const FAwsString TableName);
@@ -158,7 +174,7 @@ public:
 	void ScanStream(const FAwsString StreamArn, const FDateTime TReplayStartFrom);
 
 	/**
-	 * Given a stream ARN, get a list of ID for the shards in the stream.
+	 * Given a stream ARN, get a list of shards in the stream.
 	 * @param StreamArn
 	 **/
 	UFUNCTION(BlueprintCallable, Category="Spaces")

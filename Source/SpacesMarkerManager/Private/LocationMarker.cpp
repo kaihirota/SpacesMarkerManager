@@ -41,7 +41,7 @@ ALocationMarker::ALocationMarker()
 		SetColor(BaseColor);
 	}
 
-	CesiumGlobeAnchor = CreateDefaultSubobject<UCesiumGlobeAnchorComponent>(TEXT("Anchor"));
+	CesiumGlobeAnchor = CreateDefaultSubobject<UCesiumGlobeAnchorComponent>(TEXT("CesiumGlobeAnchor"));
 }
 
 bool ALocationMarker::ToggleSelection()
@@ -113,7 +113,6 @@ TSharedRef<FJsonObject> ALocationMarker::ToJsonObject() const
 	return JsonObject;
 }
 
-// Called when the game starts or when spawned
 void ALocationMarker::BeginPlay()
 {
 	Super::BeginPlay();
@@ -126,7 +125,6 @@ void ALocationMarker::BeginDestroy()
 	if (MarkerOnDelete.IsBound()) MarkerOnDelete.Execute(DeviceID, LocationTs.Timestamp, DeleteFromDBOnDestroy);
 }
 
-// Called every frame
 void ALocationMarker::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);

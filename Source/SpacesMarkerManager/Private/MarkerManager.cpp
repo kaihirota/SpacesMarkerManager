@@ -35,7 +35,7 @@ void UMarkerManager::Init()
 	DynamoClient = new Aws::DynamoDB::DynamoDBClient(Credentials, Config);
 	UE_LOG(LogTemp, Warning, TEXT("DynamoDB client ready"));
 
-	StreamsClient = new Aws::DynamoDBStreams::DynamoDBStreamsClient(Credentials, Config);
+	DynamoDBStreamsClient = new Aws::DynamoDBStreams::DynamoDBStreamsClient(Credentials, Config);
 	UE_LOG(LogTemp, Warning, TEXT("DynamoDB Streams client ready"));
 
 	UE_LOG(LogTemp, Warning, TEXT("Initialized AWS SDK."));
@@ -89,7 +89,7 @@ void UMarkerManager::DynamoDBStreamsListenOnce()
 TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fetching DynamoDB Streams for table: %s"), *TableName.Fstring);
-	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome = StreamsClient->ListStreams(
+	Aws::DynamoDBStreams::Model::ListStreamsOutcome ListStreamsOutcome = DynamoDBStreamsClient->ListStreams(
 		Aws::DynamoDBStreams::Model::ListStreamsRequest().WithTableName(TableName.AwsString));
 	
 	TArray<FAwsString> StreamArns;
@@ -114,7 +114,7 @@ TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 TArray<FAwsString> UMarkerManager::GetShards(const FAwsString StreamArn) const
 {
 	UE_LOG(LogTemp, Warning, TEXT("Stream ARN %s"), *StreamArn.Fstring);
-	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome = StreamsClient->DescribeStream(
+	Aws::DynamoDBStreams::Model::DescribeStreamOutcome DescribeStreamOutcome = DynamoDBStreamsClient->DescribeStream(
 		Aws::DynamoDBStreams::Model::DescribeStreamRequest().WithStreamArn(StreamArn.AwsString));
 
 	TArray<FAwsString> ShardIds;
@@ -165,7 +165,7 @@ void UMarkerManager::IterateShard(
 	if (ShardIterator == "")
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ShardIterator not created. Creating it now."));
-		Aws::DynamoDBStreams::Model::GetShardIteratorOutcome GetShardIteratorOutcome = StreamsClient->GetShardIterator(
+		Aws::DynamoDBStreams::Model::GetShardIteratorOutcome GetShardIteratorOutcome = DynamoDBStreamsClient->GetShardIterator(
 			Aws::DynamoDBStreams::Model::GetShardIteratorRequest()
 			.WithStreamArn(StreamArn.AwsString)
 			.WithShardId(ShardId.AwsString)
@@ -186,7 +186,7 @@ void UMarkerManager::IterateShard(
 	do
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Shard Iterator %s"), *ShardIterator);
-		Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome = StreamsClient->GetRecords(
+		Aws::DynamoDBStreams::Model::GetRecordsOutcome GetRecordsOutcome = DynamoDBStreamsClient->GetRecords(
 			Aws::DynamoDBStreams::Model::GetRecordsRequest().WithShardIterator(
 				Aws::String(TCHAR_TO_UTF8(*ShardIterator))));
 		if (GetRecordsOutcome.IsSuccess())
@@ -256,10 +256,10 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 					ALocationMarker* Marker;
 					if (MarkerType == ELocationMarkerType::Dynamic)
 					{
-						if (LocationMarkers.Contains(DeviceID))
+						if (SpawnedLocationMarkers.Contains(DeviceID))
 						{
 							// dynamic marker with matching device id already exists
-							Marker = *LocationMarkers.Find(DeviceID);
+							Marker = *SpawnedLocationMarkers.Find(DeviceID);
 							if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
 							{
 								// pass the new data to the marker
@@ -284,7 +284,7 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 					{
 						// for static and temporary marker, spawn only if device ID is new
 						// in other words, static and temp markers are assumed to be locked in position
-						if (!LocationMarkers.Contains(DeviceID))
+						if (!SpawnedLocationMarkers.Contains(DeviceID))
 						{
 							// spawn marker only if AllMarkers doesn't contain the device ID
 							Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
@@ -367,7 +367,7 @@ auto UMarkerManager::GetLatestRecord(const FString DeviceID, const FDateTime Las
 
 ALocationMarker* UMarkerManager::SpawnAndInitializeMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID)
 {
-	if (LocationMarkers.Contains(DeviceID))
+	if (SpawnedLocationMarkers.Contains(DeviceID))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Cannot create marker with ID %s because it already exists"), *DeviceID);
 		return nullptr;
@@ -421,8 +421,8 @@ ALocationMarker* UMarkerManager::InitializeMarker(ALocationMarker* Marker, FStri
 	Marker->LocationTs = LocationTs;
 	UE_LOG(LogTemp, Warning, TEXT("Created %s"), *Marker->ToString());
 			
-	LocationMarkers.Add(DeviceID, Marker);
-	UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), LocationMarkers.Num());
+	SpawnedLocationMarkers.Add(DeviceID, Marker);
+	UE_LOG(LogTemp, Warning, TEXT("%d data points stored"), SpawnedLocationMarkers.Num());
 	return Marker;
 }
 
@@ -497,10 +497,10 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 			const FLocationTs LocationTs = WrapLocationTs(Timestamp, Lon, Lat, Elev);
 					
 			ALocationMarker* Marker;
-			if (MarkerType == ELocationMarkerType::Dynamic && LocationMarkers.Contains(DeviceID))
+			if (MarkerType == ELocationMarkerType::Dynamic && SpawnedLocationMarkers.Contains(DeviceID))
 			{
 				// dynamic marker with matching device id already exists
-				Marker = *LocationMarkers.Find(DeviceID);
+				Marker = *SpawnedLocationMarkers.Find(DeviceID);
 				if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
 				{
 					// pass the new data to the marker
@@ -526,7 +526,7 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 
 void UMarkerManager::DestroySelectedMarkers()
 {
-	for (auto It = LocationMarkers.CreateIterator(); It; ++It)
+	for (auto It = SpawnedLocationMarkers.CreateIterator(); It; ++It)
 	{
 		ALocationMarker* Marker = It.Value();
 		if (Marker != nullptr)
@@ -543,10 +543,10 @@ void UMarkerManager::DestroySelectedMarkers()
 
 void UMarkerManager::DeleteMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB)
 {
-	if (LocationMarkers.Contains(DeviceID))
+	if (SpawnedLocationMarkers.Contains(DeviceID))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Removing from TMap: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
-		LocationMarkers.FindAndRemoveChecked(DeviceID);
+		SpawnedLocationMarkers.FindAndRemoveChecked(DeviceID);
 	}
 
 	if (DeleteFromDB)
@@ -579,7 +579,7 @@ TArray<ALocationMarker*> UMarkerManager::GetActiveMarkers() const
 {
 	TArray<ALocationMarker*> AllMarkers;
 	TArray<ALocationMarker*> ActiveMarkers;
-	LocationMarkers.GenerateValueArray(AllMarkers);
+	SpawnedLocationMarkers.GenerateValueArray(AllMarkers);
 	int NumActive = 0;
 	for (ALocationMarker* ActiveMarker : AllMarkers)
 	{

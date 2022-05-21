@@ -11,7 +11,6 @@ static const Aws::String DynamoDBLocalEndpoint = "http://localhost:8000";
 static const char* SpacesAwsRegion = Aws::Region::AP_SOUTHEAST_2;
 static const bool UseDynamoDBLocal = true;
 static const bool UseCesiumGeoreference = false;
-static const double PollingInterval = 2.0f;
 
 inline Aws::String FStringToAwsString(const FString& String)
 {
@@ -40,3 +39,7 @@ static const Aws::String PositionYAttributeNameAws = FStringToAwsString(Position
 static const Aws::String PositionZAttributeNameAws = FStringToAwsString(PositionZAttributeName);
 static const Aws::String MarkerTypeAttributeNameAws = FStringToAwsString(MarkerTypeAttributeName);
 
+// Marker types and name conventions
+static const FString StaticMarkerName = "StaticMarker";
+static const FString TemporaryMarkerName = "TemporaryMarker";
+static const FString DynamicMarkerName = "DynamicMarker";

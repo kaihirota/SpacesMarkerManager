@@ -12,8 +12,9 @@ ADynamicMarker::ADynamicMarker()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	SetColor(DynamicMarkerColor);
-	Super::ClassName = FString("DynamicMarker");
+	Super::ClassName = DynamicMarkerName;
+	Super::BaseColor = DynamicMarkerColor;
+	SetColor(BaseColor);
 }
 
 // Called when the game starts or when spawned
@@ -25,15 +26,12 @@ void ADynamicMarker::BeginPlay()
 		SetReplicates(true);
 		SetReplicateMovement(true);
 	}
-	LocationTs.UECoordinate = GetActorLocation();
+	if (LocationTs.UECoordinate == FVector::ZeroVector)
+	{
+		LocationTs.UECoordinate = GetActorLocation();
+	}
 }
 
-void ADynamicMarker::AddLocationTs(const FLocationTs Location)
-{
-	HistoryArr.HeapPush(Location);
-}
-
-// Called every frame
 void ADynamicMarker::Tick(const float DeltaTime)
 {
 	if (GetActorLocation() == LocationTs.UECoordinate)
@@ -64,6 +62,11 @@ void ADynamicMarker::Tick(const float DeltaTime)
 	}
 }
 
+void ADynamicMarker::AddLocationTs(const FLocationTs Location)
+{
+	HistoryArr.HeapPush(Location);
+}
+
 FString ADynamicMarker::ToString() const
 {
 	TArray<FStringFormatArg> Args;
@@ -80,6 +83,14 @@ FString ADynamicMarker::ToString() const
 	return Ret;
 }
 
+FString ADynamicMarker::ToJsonString() const
+{
+	FString OutputString;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+	FJsonSerializer::Serialize(ToJsonObject(), Writer);
+	return OutputString;
+}
+
 TSharedRef<FJsonObject> ADynamicMarker::ToJsonObject() const
 {
 	const TSharedRef<FJsonObject> JsonObject = Super::ToJsonObject();
@@ -92,12 +103,4 @@ TSharedRef<FJsonObject> ADynamicMarker::ToJsonObject() const
 	}
 	JsonObject->SetArrayField("history", History);
 	return JsonObject;
-}
-
-FString ADynamicMarker::ToJsonString() const
-{
-	FString OutputString;
-	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-	FJsonSerializer::Serialize(ToJsonObject(), Writer);
-	return OutputString;
 }

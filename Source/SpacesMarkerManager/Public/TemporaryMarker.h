@@ -15,22 +15,23 @@ public:
 	// Sets default values for this actor's properties
 	ATemporaryMarker();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Spaces")
-	FColor DefaultColor = FColor::Red;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	FColor TemporaryMarkerColor = FColor::Red;
 
 	/* Initial Counter value */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	float InitialCounter = 1000.0f;
 
 	/* Current Counter value */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	int Counter = InitialCounter;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
 	int CounterTickSize = 1;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces")
-	FTimerHandle TimerHandle;
+	/* Maximum scale */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces")
+	float MaxScale = 2.0f;
 
 protected:
 	// Called when the game starts or when spawned
