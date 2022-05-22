@@ -16,7 +16,7 @@ ALocationMarker::ALocationMarker()
 	StaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	RootComponent = StaticMeshComp;
 
-	SphereComp = CreateDefaultSubobject<USphereComponent>(TEXT("Marker"));
+	SphereComp = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
 	SphereComp->InitSphereRadius(DefaultRadius);
 	SphereComp->SetupAttachment(RootComponent);
 
@@ -82,7 +82,7 @@ float ALocationMarker::GetOpacity() const
 FString ALocationMarker::ToString() const
 {
 	TArray<FStringFormatArg> Args;
-	Args.Add(FStringFormatArg(*ClassName));
+	Args.Add(FStringFormatArg(GetClass()->GetName()));
 	if (!DeviceID.IsEmpty()) Args.Add(FStringFormatArg(DeviceID));
 	else Args.Add(FStringFormatArg(FString("")));
 
@@ -112,6 +112,7 @@ TSharedRef<FJsonObject> ALocationMarker::ToJsonObject() const
 	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(LocationTs.UECoordinate.X));
 	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(LocationTs.UECoordinate.Y));
 	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(LocationTs.UECoordinate.Z));
+	JsonObject->SetStringField(MarkerTypeAttributeName, UEnum::GetValueAsName(this->MarkerType).ToString());
 	return JsonObject;
 }
 

@@ -237,13 +237,12 @@ void UMarkerManager::ProcessDynamoDBStreamRecords(
 			{
 				if (JsonView.ValueExists(PartitionKeyAttributeNameAws) && JsonView.ValueExists(SortKeyAttributeNameAws))
 				{
-					// type
 					ELocationMarkerType MarkerType = ELocationMarkerType::Static;;
 					if (JsonView.KeyExists(MarkerTypeAttributeNameAws) && JsonView.ValueExists(MarkerTypeAttributeNameAws))
 					{
-						FString MarkerTypeStr = FString(JsonView.GetObject(MarkerTypeAttributeNameAws).GetString("S").c_str());
-						if (MarkerTypeStr == "dynamic") MarkerType = ELocationMarkerType::Dynamic;
-						else if (MarkerTypeStr == "temporary") MarkerType = ELocationMarkerType::Temporary;
+						FString MarkerTypeStr = FString(JsonView.GetObject(MarkerTypeAttributeNameAws).GetString("S").c_str()).ToLower();
+						if (MarkerTypeStr == TemporaryMarkerName.ToLower()) MarkerType = ELocationMarkerType::Temporary;
+						else if (MarkerTypeStr == DynamicMarkerName.ToLower()) MarkerType = ELocationMarkerType::Dynamic;
 					}
 
 					FString DeviceID = FString(JsonView.GetObject(PartitionKeyAttributeNameAws).GetString("S").c_str());

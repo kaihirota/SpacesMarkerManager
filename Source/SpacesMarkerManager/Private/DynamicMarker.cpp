@@ -13,7 +13,7 @@ ADynamicMarker::ADynamicMarker()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	Super::ClassName = DynamicMarkerName;
+	Super::MarkerType = ELocationMarkerType::Dynamic;
 	Super::BaseColor = DynamicMarkerColor;
 	SetColor(BaseColor);
 }

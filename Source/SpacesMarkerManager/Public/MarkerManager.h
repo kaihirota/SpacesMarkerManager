@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "CesiumGeoreference.h"
+#include "LocationMarker.h"
 #include "Utils.h"
 #include "LocationTs.h"
 #include "aws/dynamodb/DynamoDBClient.h"

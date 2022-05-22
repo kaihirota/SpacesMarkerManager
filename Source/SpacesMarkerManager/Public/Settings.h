@@ -39,7 +39,8 @@ static const Aws::String PositionYAttributeNameAws = FStringToAwsString(Position
 static const Aws::String PositionZAttributeNameAws = FStringToAwsString(PositionZAttributeName);
 static const Aws::String MarkerTypeAttributeNameAws = FStringToAwsString(MarkerTypeAttributeName);
 
-// Marker types and name conventions
-static const FString StaticMarkerName = "StaticMarker";
-static const FString TemporaryMarkerName = "TemporaryMarker";
-static const FString DynamicMarkerName = "DynamicMarker";
+// Marker types and names
+// For example, to use a Dynamic Marker, the marker_type attribute of the record has to match "Dynamic"
+static const FString StaticMarkerName = "Static";
+static const FString TemporaryMarkerName = "Temporary";
+static const FString DynamicMarkerName = "Dynamic";
