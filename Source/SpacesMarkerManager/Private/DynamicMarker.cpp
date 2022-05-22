@@ -11,8 +11,8 @@ DEFINE_LOG_CATEGORY(LogDynamicMarker);
 // Sets default values
 ADynamicMarker::ADynamicMarker()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.01f;
 	Super::MarkerType = ELocationMarkerType::Dynamic;
 	Super::BaseColor = DynamicMarkerColor;
 	SetColor(BaseColor);
@@ -31,28 +31,23 @@ void ADynamicMarker::BeginPlay()
 	{
 		LocationTs.UECoordinate = GetActorLocation();
 	}
+	SetLifeSpan(0);
 }
 
 void ADynamicMarker::Tick(const float DeltaTime)
 {
+	Super::Tick(DeltaTime);
 	if (GetActorLocation() == LocationTs.UECoordinate)
 	{
-		if ((idx >= 0) && (idx < HistoryArr.Num()))
+		if (idx >= 0 && idx + 1 < HistoryArr.Num())
 		{
-			LocationTs = HistoryArr[idx];
-			UE_LOG(LogDynamicMarker, Display,
-				TEXT("Dynamic Marker %s at %s, next stop %s"),
-				*DeviceID,
-				*GetActorLocation().ToString(),
-				*LocationTs.ToString());
 			if (DeltaTime > 0) idx++;
-			else if (DeltaTime < 0) idx--;
-			this->Counter = static_cast<int>(this->InitialCounter);
-		} else
-		{
-			Super::Tick(DeltaTime);
+			else if (DeltaTime < 0 && idx > 0) idx--;
+			LocationTs = HistoryArr[idx];
+			if (idx + 1 == HistoryArr.Num()) SetLifeSpan(DefaultLifeSpan); 
 		}
-	} else
+	}
+	else
 	{
 		const FVector Step = FMath::VInterpConstantTo(
 			GetActorLocation(),
@@ -61,6 +56,7 @@ void ADynamicMarker::Tick(const float DeltaTime)
 			InterpolationsPerSecond);
 		SetActorLocation(Step, true, nullptr, ETeleportType::None);
 	}
+	UE_LOG(LogTemp, Warning, TEXT("%d %d"), idx, HistoryArr.Num());
 }
 
 void ADynamicMarker::AddLocationTs(const FLocationTs Location)

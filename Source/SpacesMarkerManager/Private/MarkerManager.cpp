@@ -422,7 +422,6 @@ ALocationMarker* UMarkerManager::InitializeMarker(ALocationMarker* Marker, FStri
 	UE_LOG(LogMarkerManager, Display, TEXT("Created %s"), *Marker->ToString());
 			
 	SpawnedLocationMarkers.Add(DeviceID, Marker);
-	UE_LOG(LogMarkerManager, Display, TEXT("%d data points stored"), SpawnedLocationMarkers.Num());
 	return Marker;
 }
 
@@ -580,24 +579,23 @@ TArray<ALocationMarker*> UMarkerManager::GetActiveMarkers() const
 	TArray<ALocationMarker*> AllMarkers;
 	TArray<ALocationMarker*> ActiveMarkers;
 	SpawnedLocationMarkers.GenerateValueArray(AllMarkers);
-	int NumActive = 0;
-	for (ALocationMarker* ActiveMarker : AllMarkers)
+	
+	for (ALocationMarker* Marker : AllMarkers)
 	{
-		if (!ActiveMarker->IsActorBeingDestroyed())
+		if (Marker->IsActorBeingDestroyed())
 		{
-			ActiveMarkers.Add(ActiveMarker);
-			NumActive++;
-			if (const ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(ActiveMarker)) {
-				UE_LOG(LogMarkerManager, Display, TEXT("ALIVE: %s"), *DynamicMarker->ToString());
-			} else if (const ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(ActiveMarker)) {
-				UE_LOG(LogMarkerManager, Display, TEXT("ALIVE: %s"), *TemporaryMarker->ToString());
-			} else if (const ALocationMarker* Marker = Cast<ALocationMarker>(ActiveMarker)) {
-				UE_LOG(LogMarkerManager, Display, TEXT("ALIVE: %s"), *Marker->ToString());
-			}
+			UE_LOG(LogMarkerManager, Display, TEXT("Pending Destruction: %s"), *Marker->ToString());
 		}
-	} 
+		else
+		{
+			ActiveMarkers.Add(Marker);
+			UE_LOG(LogMarkerManager, Display, TEXT("Alive: %s"), *Marker->ToString());
+		}
+	}
+	
 	UE_LOG(LogMarkerManager, Display,
-	       TEXT("There are %d active markers in this level, and %d pending destruction."),
+	       TEXT("There are %d markers in this level - Alive: %d, Pending destruction: %d"),
+		   AllMarkers.Num(),
 		   ActiveMarkers.Num(),
 		   AllMarkers.Num() - ActiveMarkers.Num());
 	return ActiveMarkers;

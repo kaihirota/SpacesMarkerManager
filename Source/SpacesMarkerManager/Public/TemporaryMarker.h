@@ -14,24 +14,14 @@ class SPACESMARKERMANAGER_API ATemporaryMarker : public ALocationMarker
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this actor's properties
 	ATemporaryMarker();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
-	FColor TemporaryMarkerColor = FColor::Red;
-
-	/* Initial Counter value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
-	float InitialCounter = 1000.0f;
-
-	/* Current Counter value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
-	int Counter = InitialCounter;
+	FColor TemporaryMarkerColor = FColor::Blue;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
-	int CounterTickSize = 1;
-
-	/* Maximum scale */
+	float DefaultLifeSpan = 30.0f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Temporary")
 	float MaxScale = 2.0f;
 
@@ -42,10 +32,4 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Temporary")
-	void IncrementCounter(int Count);
-
-	UFUNCTION(BlueprintCallable, Category="Spaces|Marker|Temporary")
-	void DecrementCounter(int Count);
 };

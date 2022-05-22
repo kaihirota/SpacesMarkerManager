@@ -10,7 +10,7 @@ DEFINE_LOG_CATEGORY(LogLocationMarker);
 ALocationMarker::ALocationMarker()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	// Create mesh components
 	StaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));

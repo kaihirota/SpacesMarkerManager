@@ -23,7 +23,7 @@ public:
 	int idx = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Spaces|Marker|Dynamic")
-	float InterpolationsPerSecond = 1000.0f;
+	float InterpolationsPerSecond = 500.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker|Dynamic")
 	TArray<FLocationTs> HistoryArr; // heap
