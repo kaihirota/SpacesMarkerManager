@@ -4,18 +4,6 @@
 #include "aws/dynamodbstreams/model/ShardIteratorType.h"
 #include "Utils.generated.h"
 
-/**
- * Static: Location & size are fixed after being initialized
- * Temporary: Size can be set as a function of time
- * Dynamic: Location & size can be changed
- */
-UENUM(BlueprintType)
-enum class ELocationMarkerType : uint8
-{
-	Static		UMETA(DisplayName = StaticMarkerName),
-	Temporary	UMETA(DisplayName = TemporaryMarkerName),
-	Dynamic		UMETA(DisplayName = DynamicMarkerName)
-};
 
 USTRUCT(BlueprintType)
 struct FDynamoDBStreamShardIteratorType
