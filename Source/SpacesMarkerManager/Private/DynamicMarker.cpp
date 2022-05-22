@@ -15,6 +15,7 @@ ADynamicMarker::ADynamicMarker()
 	PrimaryActorTick.TickInterval = 0.01f;
 	Super::MarkerType = ELocationMarkerType::Dynamic;
 	Super::BaseColor = DynamicMarkerColor;
+	Super::DeleteFromDBOnDestroy = false;
 	SetColor(BaseColor);
 }
 
@@ -44,7 +45,11 @@ void ADynamicMarker::Tick(const float DeltaTime)
 			if (DeltaTime > 0) idx++;
 			else if (DeltaTime < 0 && idx > 0) idx--;
 			LocationTs = HistoryArr[idx];
-			if (idx + 1 == HistoryArr.Num()) SetLifeSpan(DefaultLifeSpan); 
+			if (idx + 1 == HistoryArr.Num())
+			{
+				UE_LOG(LogDynamicMarker, Display, TEXT("DynamicMarker %s reached final location. Will be destroyed in %f seconds."), *DeviceID, DefaultLifeSpan);
+				SetLifeSpan(DefaultLifeSpan);
+			} 
 		}
 	}
 	else
@@ -56,7 +61,6 @@ void ADynamicMarker::Tick(const float DeltaTime)
 			InterpolationsPerSecond);
 		SetActorLocation(Step, true, nullptr, ETeleportType::None);
 	}
-	UE_LOG(LogTemp, Warning, TEXT("%d %d"), idx, HistoryArr.Num());
 }
 
 void ADynamicMarker::AddLocationTs(const FLocationTs Location)

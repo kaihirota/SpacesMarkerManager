@@ -116,16 +116,24 @@ TSharedRef<FJsonObject> ALocationMarker::ToJsonObject() const
 	return JsonObject;
 }
 
+void ALocationMarker::InitializeParams(const FString ParamDeviceID, const FLocationTs ParamLocationTs)
+{
+	this->DeviceID = ParamDeviceID;
+	this->LocationTs = ParamLocationTs;
+	this->Initialized = true;
+}
+
 void ALocationMarker::BeginPlay()
 {
 	Super::BeginPlay();
+	if (this->Initialized) UE_LOG(LogLocationMarker, Display, TEXT("BeginPlay: %s"), *LocationTs.ToString());
 }
 
-void ALocationMarker::BeginDestroy()
+void ALocationMarker::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UE_LOG(LogLocationMarker, Display, TEXT("BeginDestroy: %s"), *DeviceID);
-	Super::BeginDestroy();
-	if (MarkerOnDelete.IsBound()) MarkerOnDelete.Execute(DeviceID, LocationTs.Timestamp, DeleteFromDBOnDestroy);
+	Super::EndPlay(EndPlayReason);
+	if (EndPlayReason == EEndPlayReason::Destroyed && MarkerOnDelete.IsBound()) MarkerOnDelete.Execute(DeviceID, LocationTs.Timestamp, DeleteFromDBOnDestroy);
+	UE_LOG(LogLocationMarker, Display, TEXT("EndPlay: %s - %s"), *UEnum::GetValueAsName(EndPlayReason).ToString(), *LocationTs.ToString());
 }
 
 void ALocationMarker::Tick(const float DeltaTime)

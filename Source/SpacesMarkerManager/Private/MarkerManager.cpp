@@ -37,9 +37,7 @@ void UMarkerManager::Init()
 	UE_LOG(LogMarkerManager, Display, TEXT("DynamoDB client ready"));
 
 	DynamoDBStreamsClient = new Aws::DynamoDBStreams::DynamoDBStreamsClient(Credentials, Config);
-	UE_LOG(LogMarkerManager, Display, TEXT("DynamoDB Streams client ready"));
-
-	UE_LOG(LogMarkerManager, Display, TEXT("Initialized AWS SDK."));
+	UE_LOG(LogMarkerManager, Display, TEXT("DynamoDB Streams client ready/ Initialized AWS SDK."));
 
 	if (UseCesiumGeoreference)
 	{
@@ -110,7 +108,6 @@ TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 	}
 	return StreamArns;
 }
-
 
 TArray<FAwsString> UMarkerManager::GetShards(const FAwsString StreamArn) const
 {
@@ -378,54 +375,35 @@ ALocationMarker* UMarkerManager::SpawnAndInitializeMarker(const FLocationTs Loca
 		return nullptr;
 	}
 	
-	AActor* MarkerActor;
-
+	UE_LOG(LogMarkerManager, Display, TEXT("Creating marker with ID %s: %s"), *DeviceID, *LocationTs.ToString());
+	ALocationMarker* Marker;
+	FTransform SpawnLoc = FTransform(LocationTs.UECoordinate);
 	switch (MarkerType)
 	{
 		case ELocationMarkerType::Dynamic:
-			MarkerActor = GetWorld()->SpawnActor<ADynamicMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
+			Marker = GetWorld()->SpawnActorDeferred<ADynamicMarker>(ADynamicMarker::StaticClass(), SpawnLoc);
 			break;
 		case ELocationMarkerType::Temporary:
-			MarkerActor = GetWorld()->SpawnActor<ATemporaryMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
+			Marker = GetWorld()->SpawnActorDeferred<ATemporaryMarker>(ATemporaryMarker::StaticClass(), SpawnLoc);
 			break;
 		case ELocationMarkerType::Static:
-			MarkerActor = GetWorld()->SpawnActor<ALocationMarker>(LocationTs.UECoordinate, FRotator::ZeroRotator);
+			Marker = GetWorld()->SpawnActorDeferred<ALocationMarker>(ALocationMarker::StaticClass(), SpawnLoc);
 			break;
 		default:
+			UE_LOG(LogMarkerManager, Warning, TEXT("Error: Could not spawn marker: %s - %s"), *DeviceID, *LocationTs.ToString());
 			return nullptr;
 	}
-	UE_LOG(LogMarkerManager, Display, TEXT("Creating marker with ID %s, %s"), *DeviceID, *LocationTs.ToString());
-
-	if (MarkerActor != nullptr)
-	{
-		/* Bind the Marker's BeginDestroy with deletion from database. Do this only for static location markers. */
-		if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(MarkerActor))
-		{
-			return InitializeMarker(DynamicMarker, DeviceID, LocationTs);
-		} else if (ATemporaryMarker* TemporaryMarker = Cast<ATemporaryMarker>(MarkerActor))
-		{
-			return InitializeMarker(TemporaryMarker, DeviceID, LocationTs);
-		} else if (ALocationMarker* Marker = Cast<ALocationMarker>(MarkerActor))
-		{
-			return InitializeMarker(Marker, DeviceID, LocationTs);
-		}
-	}
-	UE_LOG(LogMarkerManager, Warning, TEXT("Error: Could not cast LocationMarker to desired type."));
-	return nullptr;
-}
-
-ALocationMarker* UMarkerManager::InitializeMarker(ALocationMarker* Marker, FString DeviceID, FLocationTs LocationTs)
-{
-	Marker->MarkerOnDelete.BindUFunction(this, "DeleteMarker");
-	Marker->DeviceID = DeviceID;
-	Marker->LocationTs = LocationTs;
-	UE_LOG(LogMarkerManager, Display, TEXT("Created %s"), *Marker->ToString());
-			
+	
+	/* Bind the Marker's BeginDestroy with deletion from database. Do this only for static location markers. */
+	Marker->MarkerOnDelete.BindUFunction(this, "DestroyMarker");
+	Marker->InitializeParams(DeviceID, LocationTs);
+	Marker->FinishSpawning(SpawnLoc);
 	SpawnedLocationMarkers.Add(DeviceID, Marker);
+	UE_LOG(LogMarkerManager, Display, TEXT("Created %s"), *Marker->ToString());
 	return Marker;
 }
 
-bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
+bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker) const
 {
 	Aws::DynamoDB::Model::PutItemRequest Request;
 	Request.SetTableName(DynamoDBTableNameAws);
@@ -439,22 +417,26 @@ bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker)
 	Request.AddItem(SortKeyAttributeNameAws, SortKeyValue);
 
 	Aws::DynamoDB::Model::AttributeValue Lon, Lat, Elev;
-	Lon.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.UECoordinate.X))));
+	Lon.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Wgs84Coordinate.X))));
 	Request.AddItem(PositionXAttributeNameAws, Lon);
 
-	Lat.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.UECoordinate.Y))));
+	Lat.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Wgs84Coordinate.Y))));
 	Request.AddItem(PositionYAttributeNameAws, Lat);
 
-	Elev.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.UECoordinate.Z))));
+	Elev.SetS(Aws::String(TCHAR_TO_UTF8(*FString::SanitizeFloat(Marker->LocationTs.Wgs84Coordinate.Z))));
 	Request.AddItem(PositionZAttributeNameAws, Elev);
 
 	const Aws::DynamoDB::Model::PutItemOutcome Outcome = DynamoClient->PutItem(Request);
+
 	if (Outcome.IsSuccess())
 	{
-		return true;
+		UE_LOG(LogMarkerManager, Display, TEXT("Put item Success: %s"), *FString(Outcome.GetError().GetMessage().c_str()));
 	}
-	UE_LOG(LogMarkerManager, Warning, TEXT("Put item failed: %s"), *FString(Outcome.GetError().GetMessage().c_str()));
-	return false;
+	else
+	{
+		UE_LOG(LogMarkerManager, Warning, TEXT("Put item Fail: %s"), *FString(Outcome.GetError().GetMessage().c_str()));
+	}
+	return Outcome.IsSuccess();
 }
 
 void UMarkerManager::GetAllMarkersFromDynamoDB()
@@ -482,7 +464,10 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 			else
 			{
 				const FString MarkerTypeStr = FString(Pairs.at(MarkerTypeAttributeNameAws).GetS().c_str());
-				if (MarkerTypeStr.Equals(FString("dynamic"))) MarkerType = ELocationMarkerType::Dynamic;
+				if (MarkerTypeStr.ToLower().Equals(DynamicMarkerName.ToLower()))
+				{
+					MarkerType = ELocationMarkerType::Dynamic;
+				}
 				else MarkerType = ELocationMarkerType::Static;
 			}
 			
@@ -530,28 +515,28 @@ void UMarkerManager::DestroySelectedMarkers()
 		ALocationMarker* Marker = It.Value();
 		if (Marker != nullptr)
 		{
-			UE_LOG(LogMarkerManager, Display, TEXT("%s"), *Marker->ToString());
 			if (Marker->Selected == true)
 			{
-				UE_LOG(LogMarkerManager, Display, TEXT("Destroying: %s"), *Marker->ToString());
 				Marker->Destroy();
 			}
 		}
 	}
 }
 
-void UMarkerManager::DeleteMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB)
+void UMarkerManager::DestroyMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB)
 {
+	UE_LOG(LogMarkerManager, Display, TEXT("Destroying: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
 	if (SpawnedLocationMarkers.Contains(DeviceID))
 	{
-		UE_LOG(LogMarkerManager, Display, TEXT("Removing from TMap: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
 		SpawnedLocationMarkers.FindAndRemoveChecked(DeviceID);
+		UE_LOG(LogMarkerManager, Display, TEXT("Removed: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
 	}
 
 	if (DeleteFromDB)
 	{
 		UE_LOG(LogMarkerManager, Display, TEXT("Deleting from DB: %s - %s"), *DeviceID, *Timestamp.ToIso8601());
-		DeleteMarkerFromDynamoDB(DeviceID, Timestamp);
+		const bool Success = DeleteMarkerFromDynamoDB(DeviceID, Timestamp);
+		UE_LOG(LogMarkerManager, Display, TEXT("Delete from DB %s: %s - %s"), Success ? *FString("Success") : *FString("Fail"), *DeviceID, *Timestamp.ToIso8601());
 	}
 }
 
@@ -562,9 +547,8 @@ bool UMarkerManager::DeleteMarkerFromDynamoDB(const FString DeviceID, const FDat
 	PartitionKey.SetS(Aws::String(TCHAR_TO_UTF8(*DeviceID)));
 	Aws::DynamoDB::Model::AttributeValue SortKey;
 	SortKey.SetS(Aws::String(TCHAR_TO_UTF8(*FString::FromInt(Timestamp.ToUnixTimestamp()))));
-	// TODO does not work when using global constants for some reason, data type mismatch even if using Aws::String
-	AttributeValues.emplace("device_id", PartitionKey);
-	AttributeValues.emplace("created_timestamp", SortKey);
+	AttributeValues.emplace(PartitionKeyAttributeNameAws, PartitionKey);
+	AttributeValues.emplace(SortKeyAttributeNameAws, SortKey);
 
 	const Aws::DynamoDB::Model::DeleteItemRequest Request = Aws::DynamoDB::Model::DeleteItemRequest()
 	                                                        .WithTableName(DynamoDBTableNameAws)
@@ -584,7 +568,7 @@ TArray<ALocationMarker*> UMarkerManager::GetActiveMarkers() const
 	{
 		if (Marker->IsActorBeingDestroyed())
 		{
-			UE_LOG(LogMarkerManager, Display, TEXT("Pending Destruction: %s"), *Marker->ToString());
+			UE_LOG(LogMarkerManager, Display, TEXT("Being Destroyed: %s"), *Marker->ToString());
 		}
 		else
 		{
@@ -594,7 +578,7 @@ TArray<ALocationMarker*> UMarkerManager::GetActiveMarkers() const
 	}
 	
 	UE_LOG(LogMarkerManager, Display,
-	       TEXT("There are %d markers in this level - Alive: %d, Pending destruction: %d"),
+	       TEXT("There are %d markers - Alive: %d, Pending destruction: %d"),
 		   AllMarkers.Num(),
 		   ActiveMarkers.Num(),
 		   AllMarkers.Num() - ActiveMarkers.Num());

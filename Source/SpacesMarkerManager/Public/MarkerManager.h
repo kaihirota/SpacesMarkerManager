@@ -61,26 +61,29 @@ public:
 	/**
 	* Spawn a marker of specified type, initialized with the provided parameters.
 	* Using this function to spawn location markers will save a references in SpawnedLocationMarkers.
-	* Internally, it uses InitializeMarker().
 	* @param LocationTs
 	* @param MarkerType
 	* @param DeviceID
+	* @param DeleteFromDBOnDestroy [bool] Whether the marker should be deleted from the database when the marker is destroyed explicitly.
 	* @returns Marker [ALocationMarker] 
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
 	ALocationMarker* SpawnAndInitializeMarker(const FLocationTs LocationTs, const ELocationMarkerType MarkerType, const FString DeviceID);
 
-	ALocationMarker* InitializeMarker(ALocationMarker* Marker, FString DeviceID, FLocationTs LocationTs);
-
 	/****************   DynamoDB   ******************/
 
 	/**
 	* Given a reference to a LocationMarker instance, insert it into DynamoDB table.
+	* This function was written with the assumption that within the game,
+	* only Static Markers and Temporary Markers are created by the user, and
+	* temporary markers created in the game do not need to be stored in DynamoDB.
+	* The reason for this assumption is that this game is mainly the consumer of data
+	* as opposed to being a producer.
 	* @param Marker
 	* @returns Success [bool] True if insert succeeded, else False.
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
-	bool CreateMarkerInDB(const ALocationMarker* Marker);
+	bool CreateMarkerInDB(const ALocationMarker* Marker) const;
 
 	/**
 	* Fetch all markers from DynamoDB and spawn them in the world.
@@ -116,7 +119,7 @@ public:
 	* @param DeleteFromDB [bool]
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
-	void DeleteMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB);
+	void DestroyMarker(const FString DeviceID, const FDateTime Timestamp, const bool DeleteFromDB);
 
 	/**
 	 * Deletes a marker with matching attributes from DynamoDB.

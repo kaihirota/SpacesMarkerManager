@@ -9,6 +9,7 @@ ATemporaryMarker::ATemporaryMarker()
 	PrimaryActorTick.TickInterval = 0.1f;
 	Super::MarkerType = ELocationMarkerType::Temporary;
 	Super::BaseColor = TemporaryMarkerColor;
+	Super::DeleteFromDBOnDestroy = false;
 	SetColor(BaseColor);
 }
 

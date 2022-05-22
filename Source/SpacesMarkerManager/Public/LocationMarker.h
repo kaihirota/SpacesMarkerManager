@@ -72,12 +72,16 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker")
 	FLocationTs LocationTs;
 
+	/* When DeleteFromDBOnDestroy is True, the marker will be deleted from the database upon destruction*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker")
+	bool DeleteFromDBOnDestroy = true;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker")
 	bool Selected = false;
 
-	/* When DeleteFromDBOnDestroy is True, the marker will be deleted from the database upon destruction*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spaces|Marker")
-	bool DeleteFromDBOnDestroy = false;
+	/* When this is set to true, the marker attributes will be printed in the UE console when it is spawned */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker")
+	bool Initialized = false;
 
 	DECLARE_DELEGATE_ThreeParams(FLocationMarkerOnDelete, FString, FDateTime, bool);
 	FLocationMarkerOnDelete MarkerOnDelete;
@@ -85,16 +89,24 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	
-	/* Called before destroying the object.
-	 * This is called immediately upon deciding to destroy the object,
-	 * to allow the object to begin an asynchronous cleanup process.
-	 */ 
-	virtual void BeginDestroy() override;
+
+	// EndPlay - Called in several places to guarantee the life of the Actor is coming to an end.
+	// During play, Destroy will fire this, as well Level Transitions, and if a streaming
+	// level containing the Actor is unloaded. All the places EndPlay is called from:
+	// -Explicit call to Destroy.
+	// -Play in Editor Ended.
+	// -Level Transition (seamless travel or load map).
+	// -A streaming level containing the Actor is unloaded.
+	// -The lifetime of the Actor has expired.
+	// -Application shut down (All Actors are Destroyed).
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION(BlueprintCallable, Category="Spaces|Marker")
+	void InitializeParams(FString ParamDeviceID, FLocationTs ParamLocationTs);
 	
 	/**
 	* Select or unselect this marker
@@ -130,27 +142,3 @@ inline bool operator==(const ALocationMarker& Marker1, const ALocationMarker& Ma
 		Marker1.LocationTs.UECoordinate == Marker1.LocationTs.UECoordinate &&
 		Marker1.LocationTs.Timestamp == Marker2.LocationTs.Timestamp);
 }
-
-// inline uint32 GetTypeHash(const ALocationMarker& Thing)
-// {
-// 	FString s = Thing.ToJsonString();
-// 	const uint32 Hash = FCrc::StrCrc32(*s, sizeof(s));
-// 	return Hash;
-// }
-//
-// inline uint32 GetTypeHash(const FVector Coordinate, const FDateTime Timestamp, const FString DeviceID)
-// {
-// 	const TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-//
-// 	if (!DeviceID.IsEmpty()) JsonObject->SetStringField(PartitionKeyAttributeName, DeviceID);
-// 	else JsonObject->SetStringField(PartitionKeyAttributeName, FString(""));
-// 	JsonObject->SetStringField(SortKeyAttributeName, FString::FromInt(Timestamp.ToUnixTimestamp()));
-// 	JsonObject->SetStringField(PositionXAttributeName, FString::SanitizeFloat(Coordinate.X));
-// 	JsonObject->SetStringField(PositionYAttributeName, FString::SanitizeFloat(Coordinate.Y));
-// 	JsonObject->SetStringField(PositionZAttributeName, FString::SanitizeFloat(Coordinate.Z));
-// 	FString OutputString;
-// 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-// 	FJsonSerializer::Serialize(JsonObject, Writer);
-// 	const uint32 Hash = FCrc::StrCrc32(*OutputString, sizeof(OutputString));
-// 	return Hash;
-// }
