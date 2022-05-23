@@ -13,7 +13,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMarkerManager, Display, All);
 
 class ALocationMarker;
 
-UCLASS(Blueprintable, BlueprintType)
+UCLASS(Blueprintable, BlueprintType, Config=Game)
 class SPACESMARKERMANAGER_API UMarkerManager : public UGameInstance
 {
 	GENERATED_BODY()
@@ -55,6 +55,27 @@ protected:
 
 	virtual void Init() override;
 	virtual void Shutdown() override;
+
+	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="Spaces|MarkerManager|Config")
+	FString AWSAccessKeyId;
+	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="Spaces|MarkerManager|Config")
+	FString AWSSecretKey;
+	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="Spaces|MarkerManager|Config")
+	FString SpacesAwsRegion;
+
+	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="Spaces|MarkerManager|Config")
+	FString DynamoDBLocalEndpoint;
+
+	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="Spaces|MarkerManager|Config")
+	bool UseDynamoDBLocal = true;
+
+	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="Spaces|MarkerManager|Config")
+	bool UseCesiumGeoreference = false;
+
+	FAwsString AWSAccessKeyIdStr;
+	FAwsString AWSSecretKeyStr;
+	FAwsString SpacesAwsRegionStr;
+	FAwsString DynamoDBLocalEndpointStr;
 	
 public:
 

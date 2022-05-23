@@ -25,13 +25,25 @@ void UMarkerManager::Init()
 {
 	UE_LOG(LogMarkerManager, Display, TEXT("Game instance initializing"));
 	Super::Init();
+
+	GConfig->GetString(TEXT("/Script/SpacesMarkerManager.UMarkerManager"), TEXT("AWSAccessKeyId"), this->AWSAccessKeyId, GEditorPerProjectIni);
+	GConfig->GetString(TEXT("/Script/SpacesMarkerManager.UMarkerManager"), TEXT("AWSSecretKey"), this->AWSSecretKey, GEditorPerProjectIni);
+	GConfig->GetString(TEXT("/Script/SpacesMarkerManager.UMarkerManager"), TEXT("SpacesAwsRegion"), this->SpacesAwsRegion, GEditorPerProjectIni);
+	GConfig->GetString(TEXT("/Script/SpacesMarkerManager.UMarkerManager"), TEXT("DynamoDBLocalEndpoint"), this->DynamoDBLocalEndpoint, GEditorPerProjectIni);
+	// LoadConfig(StaticClass(), TEXT("BaseSpacesMarkerManager.ini"));
+	this->AWSAccessKeyIdStr = FAwsString::FromFString(AWSAccessKeyId);
+	this->AWSSecretKeyStr = FAwsString::FromFString(AWSSecretKey);
+	this->SpacesAwsRegionStr = FAwsString::FromFString(SpacesAwsRegion);
+	this->DynamoDBLocalEndpointStr = FAwsString::FromFString(DynamoDBLocalEndpoint);
+	UE_LOG(LogMarkerManager, Display, TEXT("aaaa %s"), *AWSAccessKeyId);
+
 	UE_LOG(LogMarkerManager, Display, TEXT("Initializing AWS SDK..."));
 	Aws::InitAPI(Aws::SDKOptions());
 
-	const Aws::Auth::AWSCredentials Credentials = Aws::Auth::AWSCredentials(AWSAccessKeyId, AWSSecretKey);
+	const Aws::Auth::AWSCredentials Credentials = Aws::Auth::AWSCredentials(AWSAccessKeyIdStr.AwsString, AWSSecretKeyStr.AwsString);
 	Aws::Client::ClientConfiguration Config = Aws::Client::ClientConfiguration();
-	Config.region = SpacesAwsRegion;
-	if (UseDynamoDBLocal) Config.endpointOverride = DynamoDBLocalEndpoint;
+	Config.region = SpacesAwsRegionStr.AwsString;
+	if (UseDynamoDBLocal) Config.endpointOverride = DynamoDBLocalEndpointStr.AwsString;
 
 	DynamoClient = new Aws::DynamoDB::DynamoDBClient(Credentials, Config);
 	UE_LOG(LogMarkerManager, Display, TEXT("DynamoDB client ready"));
