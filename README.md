@@ -27,5 +27,6 @@ Example Projects:
 3. Edit `settings.h`
      - For testing, use Docker to spin up a local instance of `DynamoDB` and `DynamoDB Streams`, and set `UseDynamoDBLocal` in `settings.h` to `true`. See [Source/SpacesMarkerManager/Public/Settings.h](Source/SpacesMarkerManager/Public/Settings.h) for how to spin up DynamoDB locally.
      - For production, set `UseDynamoDBLocal` to `false` and configure `AWSAccessKeyId`, `AWSSecretKey`, `SpacesAwsRegion`, `DynamoDBTableName`.
+     - When using the plugin in the sample projects listed above, keep the `UseCesiumGeoreference = false;`, since the sample projects do not use Cesium. However, it still lists Cesium as a plugin so make sure to enable the Cesium plugin.
 4. Open the UE Project. Go to Edit > Project Settings > Maps & Modes, scroll to the bottom, and change "Game Instance Class" to "MarkerManager".
 5. Use this plugin by Blueprint or C++. See examples for more information.
