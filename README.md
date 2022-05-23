@@ -25,7 +25,7 @@ Example Projects:
 1. In the UE Project, enable the two plugins above. When developing, I had the 2 plugins above installed as Engine plugin, not Project plugin.
 2. Download this repository, and save it in an Unreal Engine project under `Plugins`. If the UE project is `MyProject`, then this repository should be saved in `MyProject/Plugins/`. So after this step your should have `MyProject/Plugins/SpacesMarkerManager`.
 3. Edit `settings.h`
-     - For testing, use Docker to spin up a local instance of `DynamoDB` and `DynamoDB Streams`, and set `UseDynamoDBLocal` in `settings.h` to `true`. See https://github.com/from81/MojexaSpacesInfra/tree/main/dynamodb for how to spin up DynamoDB locally.
+     - For testing, use Docker to spin up a local instance of `DynamoDB` and `DynamoDB Streams`, and set `UseDynamoDBLocal` in `settings.h` to `true`. See [Source/SpacesMarkerManager/Public/Settings.h](Source/SpacesMarkerManager/Public/Settings.h) for how to spin up DynamoDB locally.
      - For production, set `UseDynamoDBLocal` to `false` and configure `AWSAccessKeyId`, `AWSSecretKey`, `SpacesAwsRegion`, `DynamoDBTableName`.
 4. Open the UE Project. Go to Edit > Project Settings > Maps & Modes, scroll to the bottom, and change "Game Instance Class" to "MarkerManager".
 5. Use this plugin by Blueprint or C++. See examples for more information.
