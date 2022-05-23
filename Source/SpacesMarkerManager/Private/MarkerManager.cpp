@@ -398,6 +398,10 @@ ALocationMarker* UMarkerManager::SpawnAndInitializeMarker(const FLocationTs Loca
 	Marker->MarkerOnDelete.BindUFunction(this, "DestroyMarker");
 	Marker->InitializeParams(DeviceID, LocationTs);
 	Marker->FinishSpawning(SpawnLoc);
+	if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
+	{
+		DynamicMarker->AddLocationTs(LocationTs);
+	}
 	SpawnedLocationMarkers.Add(DeviceID, Marker);
 	UE_LOG(LogMarkerManager, Display, TEXT("Created %s"), *Marker->ToString());
 	return Marker;
@@ -439,7 +443,7 @@ bool UMarkerManager::CreateMarkerInDB(const ALocationMarker* Marker) const
 	return Outcome.IsSuccess();
 }
 
-void UMarkerManager::GetAllMarkersFromDynamoDB()
+void UMarkerManager::GetAllMarkersFromDynamoDB(bool StaticMarkersOnly)
 {
 	Aws::DynamoDB::Model::ScanRequest Request;
 	Request.SetTableName(DynamoDBTableNameAws);
@@ -481,23 +485,30 @@ void UMarkerManager::GetAllMarkersFromDynamoDB()
 			const FLocationTs LocationTs = WrapLocationTs(Timestamp, Lon, Lat, Elev);
 					
 			ALocationMarker* Marker;
-			if (MarkerType == ELocationMarkerType::Dynamic && SpawnedLocationMarkers.Contains(DeviceID))
+			if (MarkerType == ELocationMarkerType::Static)
 			{
-				// dynamic marker with matching device id already exists
-				Marker = *SpawnedLocationMarkers.Find(DeviceID);
-				if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
-				{
-					// pass the new data to the marker
-					DynamicMarker->AddLocationTs(LocationTs);
-					UE_LOG(LogMarkerManager, Display, TEXT("Added new location %s for Dynamic marker %s"),
-						*LocationTs.ToString(),
-						*Marker->ToString());
-				}
-			} else
-			{
-				// spawn dynamic marker only if AllMarkers doesn't contain the device ID
 				Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
-				UE_LOG(LogMarkerManager, Display, TEXT("Created Dynamic Marker: %s"), *Marker->GetName());
+			}
+			else if (MarkerType == ELocationMarkerType::Dynamic && !StaticMarkersOnly)
+			{
+				if (SpawnedLocationMarkers.Contains(DeviceID))
+				{
+					// dynamic marker with matching device id already exists
+					Marker = *SpawnedLocationMarkers.Find(DeviceID);
+					if (ADynamicMarker* DynamicMarker = Cast<ADynamicMarker>(Marker))
+					{
+						// pass the new data to the marker
+						DynamicMarker->AddLocationTs(LocationTs);
+						UE_LOG(LogMarkerManager, Display, TEXT("Added new location %s for Dynamic marker %s"),
+							*LocationTs.ToString(),
+							*Marker->ToString());
+					}
+				} else
+				{
+					// spawn dynamic marker only if SpawnedLocationMarkers doesn't contain the device ID
+					Marker = SpawnAndInitializeMarker(LocationTs, MarkerType, DeviceID);
+					UE_LOG(LogMarkerManager, Display, TEXT("Created Dynamic Marker: %s"), *Marker->GetName());
+				}
 			}
 		}
 	}

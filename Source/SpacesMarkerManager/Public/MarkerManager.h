@@ -64,7 +64,6 @@ public:
 	* @param LocationTs
 	* @param MarkerType
 	* @param DeviceID
-	* @param DeleteFromDBOnDestroy [bool] Whether the marker should be deleted from the database when the marker is destroyed explicitly.
 	* @returns Marker [ALocationMarker] 
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
@@ -87,10 +86,14 @@ public:
 
 	/**
 	* Fetch all markers from DynamoDB and spawn them in the world.
-	* For DynamicMarkers, only one marker will be spawned for the most recent known location.
+	* Caution: Because this method retrieves all rows from DynamoDB table,
+	* this is the most expensive function. It's recommended to use a local
+	* DynamoDB instance to not accumulate charges.
+	* @param StaticMarkersOnly [bool] If set to true, only static markers will be spawned.
+	* Otherwise, static and dynamic markers are spawned.
 	**/
 	UFUNCTION(BlueprintCallable, Category="Spaces|MarkerManager")
-	void GetAllMarkersFromDynamoDB();
+	void GetAllMarkersFromDynamoDB(const bool StaticMarkersOnly = true);
 
 	/**
 	* Given a DeviceID, query DynamoDB for the last known location.

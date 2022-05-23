@@ -1,5 +1,3 @@
-// Copyright 2020-2021 CesiumGS, Inc. and Contributors
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -82,6 +80,9 @@ public:
 	/* When this is set to true, the marker attributes will be printed in the UE console when it is spawned */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker")
 	bool Initialized = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spaces|Marker")
+	bool ReachedLastLocation = false;
 
 	DECLARE_DELEGATE_ThreeParams(FLocationMarkerOnDelete, FString, FDateTime, bool);
 	FLocationMarkerOnDelete MarkerOnDelete;

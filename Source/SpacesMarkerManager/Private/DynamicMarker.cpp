@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "DynamicMarker.h"
 
 #include "JsonObjectConverter.h"
@@ -37,7 +34,6 @@ void ADynamicMarker::BeginPlay()
 
 void ADynamicMarker::Tick(const float DeltaTime)
 {
-	Super::Tick(DeltaTime);
 	if (GetActorLocation() == LocationTs.UECoordinate)
 	{
 		if (idx >= 0 && idx + 1 < HistoryArr.Num())
@@ -48,9 +44,14 @@ void ADynamicMarker::Tick(const float DeltaTime)
 			if (idx + 1 == HistoryArr.Num())
 			{
 				UE_LOG(LogDynamicMarker, Display, TEXT("DynamicMarker %s reached final location. Will be destroyed in %f seconds."), *DeviceID, DefaultLifeSpan);
-				SetLifeSpan(DefaultLifeSpan);
+				if (!ReachedLastLocation)
+				{
+					ReachedLastLocation = true;
+					SetLifeSpan(DefaultLifeSpan);
+				} 
 			} 
 		}
+		if (ReachedLastLocation) Super::Tick(DeltaTime); 
 	}
 	else
 	{
@@ -66,6 +67,7 @@ void ADynamicMarker::Tick(const float DeltaTime)
 void ADynamicMarker::AddLocationTs(const FLocationTs Location)
 {
 	HistoryArr.HeapPush(Location);
+	SetLifeSpan(0);
 }
 
 FString ADynamicMarker::ToString() const
