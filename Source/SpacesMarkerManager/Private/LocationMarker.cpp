@@ -135,8 +135,3 @@ void ALocationMarker::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (EndPlayReason == EEndPlayReason::Destroyed && MarkerOnDelete.IsBound()) MarkerOnDelete.Execute(DeviceID, LocationTs.Timestamp, DeleteFromDBOnDestroy);
 	UE_LOG(LogLocationMarker, Display, TEXT("EndPlay: %s - %s"), *UEnum::GetValueAsName(EndPlayReason).ToString(), *LocationTs.ToString());
 }
-
-void ALocationMarker::Tick(const float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}

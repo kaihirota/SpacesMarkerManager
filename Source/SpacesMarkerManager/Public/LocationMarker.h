@@ -103,8 +103,6 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable, Category="Spaces|Marker")
 	void InitializeParams(FString ParamDeviceID, FLocationTs ParamLocationTs);
