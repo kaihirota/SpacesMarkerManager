@@ -104,7 +104,11 @@ TArray<FAwsString> UMarkerManager::GetStreams(const FAwsString TableName)
 		UE_LOG(LogMarkerManager, Display, TEXT("Found %d DynamoDB Streams for table %s"), Streams.size(), *TableName.Fstring);
 	} else
 	{
-		UE_LOG(LogMarkerManager, Warning, TEXT("ListStreams error: %s"), *FString(ListStreamsOutcome.GetError().GetMessage().c_str()));
+		int RC = static_cast<int>(ListStreamsOutcome.GetError().GetResponseCode());
+		FString ExceptionName = FString(ListStreamsOutcome.GetError().GetExceptionName().c_str());
+		FString RemoteHost = FString(ListStreamsOutcome.GetError().GetRemoteHostIpAddress().c_str());
+		FString Message = FString(ListStreamsOutcome.GetError().GetMessage().c_str());
+		UE_LOG(LogMarkerManager, Warning, TEXT("ListStreams error: %d %s: %s %s"), RC, *ExceptionName, *RemoteHost *Message);
 	}
 	return StreamArns;
 }
