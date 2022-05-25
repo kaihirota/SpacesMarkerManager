@@ -30,3 +30,7 @@ Example Projects:
      - When using the plugin in the sample projects listed above, keep the `UseCesiumGeoreference = false;`, since the sample projects do not use Cesium. However, it still lists Cesium as a plugin so make sure to enable the Cesium plugin.
 4. Open the UE Project. Go to Edit > Project Settings > Maps & Modes, scroll to the bottom, and change "Game Instance Class" to "MarkerManager".
 5. Use this plugin by Blueprint or C++. See examples for more information.
+
+Changelog:
+
+- 25 May 2022: 1.0 of the report attached to the repository in [here](/Doc/report.md).
