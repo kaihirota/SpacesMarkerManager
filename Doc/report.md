@@ -92,6 +92,24 @@ aws dynamodb put-item --table-name "mojexa-markers" --endpoint-url http://localh
         "latitude": {"N": "1257.8828626888426"}}'
 ```
 
+Why this schema? Why not use a list of map containing coordinates and the timestamp?
+
+- To query any DynamoDB table, you need a partition key and sort key.
+- While using a list of map makes sense, it is not possible to simply retrieve the first or last item in a list in DynamoDB. You must retrieve the whole item / row. Using a list of map means when we poll for new locations we are retrieving more duplicate data in each request, which consumes more read capacity units.
+- You would need a mechanism to ensure that the list is always sorted in the correct order.
+- Querying gets much more complicated, as you can't retrieve a set of coordinates given a coordinate range.
+- Any other attribute that is added - for example, the quantity, and price of the items the customer purchased at some kiosk at a given location and time, need to be stored in a list as well, since you will only have device id as the partition key but no timestamp to use as sort key. This makes querying harder, as it is not possible to create indexes on nested elements in DynamoDB. You also will not be able to do aggregations unlike using relational databases.
+
+Why using a flat schema (each row has id, timestamp, and coordinate x y z) makes sense
+
+- It's possible to create to collapse the x-y coordinates into a single string through geohashing, which can then be indexed and range-queried against. This is also a good candidate for global or local secondary index. 
+- Using geohash as the range key or partition key will mean that records in the same partition are geographically close to each other.
+- Each row / item is as small as it can be, so it consumes less read capacity unit.
+- Checking if a given device ID has a new location requires us to check only one document -  by traversing the timestamp in reverse.
+- Other attributes that do not change over time should be stored separately - for example, in a relational database where you can have strong consistency. Using the same device ID as the primary key.
+- Using this architecture, you can flexibly add and change the attribute at any time.
+- This is the only schema currently that allows you to say, 
+
 ### **Assumption around Marker behaviors**
 
 A single unit of timestamped geolocation data can be represented and instantiated as a `LocationMarker`, which has 3 types, each being a parent class of the next:
