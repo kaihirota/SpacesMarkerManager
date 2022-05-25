@@ -279,6 +279,8 @@ Since both Apache Kafka and Kinesis Data Stream are more modern and cloud-native
 
 When using DynamoDB and DynamoDB Streams, doing any kind of scans should be avoided as much as possible to reduce the amount of reading (as well as retrieval speed). Like described in a previous section, [Assumed DynamoDB schema](#Assumed-DynamoDB-schema), using device ID as the partition key and timestamp as the sort key is a good choice of schema. The reason is that if we want to check if a given device ID has a new location, we can traverse the partition in reverse direction, which means we only need to look at one document or row. If we want to retrieve data without specifying the device ID, it is best to offset the read to DynamoDB Streams where possible.
 
+If we decide to use MQTT or some distributed pub/sub system, we can use the AWS Lambda function to select insert events from DynamoDB Streams, and publish those events to the broker. Using AWS Lambda to read from DynamoDB Streams is **free**, unlike using the `aws-sdk` to read from the Stream.
+
 ## Cost
 
 ### Cost Structure
