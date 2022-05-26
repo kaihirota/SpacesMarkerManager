@@ -6,8 +6,6 @@ Kai Hirota
 
 kaiyhirota@gmail.com
 
-https://www.linkedin.com/in/kaihirota/
-
 
 
 ## Table of Content
@@ -36,7 +34,7 @@ The final deliverable is composed of the following items:
 		- `spaces_api/`
 			- AWS Lambda handlers written in Python to quickly mimic Mojexa / Tiparra's REST API. Includes endpoints for Create / Read / Delete. The project used these API endpoints in the beginning, and later switched to using AWS-SDK directly to interact with DynamoDB table. The script has not been maintained nor updated after that.
 		- `lambda_publish_location`
-			- AWS Lambda handler which acts on all inserts to DynamoDB by monitoring DynamoDB Streams. Whenever there is an insert, this function will publish the newly inserted row to AWS RabbitMQ broker. Since no MQTT / RabbitMQ client libraries are available in C++ in Unreal Engine context, this approach was discontinued. However, the Lambda function does what it is supposed to.
+			- AWS Lambda handler which acts on all inserts to DynamoDB by monitoring DynamoDB Streams. Whenever there is an insert, this function will publish the newly inserted row to AWS RabbitMQ broker. Since no MQTT / RabbitMQ client libraries are available in C++ in Unreal Engine context, this approach was discontinued. However, the Lambda function does what it is supposed to so it is included for convenience if the need to use ever comes..
 
 ## Get Started
 
@@ -50,7 +48,8 @@ For set-up instructions, see [this documentation](https://github.com/from81/Spac
 - Dependency Plugins
 	- [awsSDK by Siqi Wu](https://www.unrealengine.com/marketplace/en-US/product/aws-dynamodb)
 	- [CesiumForUnreal](https://github.com/CesiumGS/cesium-unreal)
-- Docker required if running DynamoDB locally
+- [Docker](https://docs.docker.com/get-docker/) required if running DynamoDB locally
+- [AWS Command line interface](https://aws.amazon.com/cli/)
 
 ### Assumed DynamoDB schema
 
@@ -94,11 +93,10 @@ aws dynamodb put-item --table-name "mojexa-markers" --endpoint-url http://localh
 
 Why this schema? Why not use a list of map containing coordinates and the timestamp?
 
-- To query any DynamoDB table, you need a partition key and sort key.
-- While using a list of map makes sense, it is not possible to simply retrieve the first or last item in a list in DynamoDB. You must retrieve the whole item / row. Using a list of map means when we poll for new locations we are retrieving more duplicate data in each request, which consumes more read capacity units.
+- While using a list of map makes sense, it is not possible to simply retrieve the first or last item in a list in DynamoDB. You must retrieve the whole item / row. Using a list of map means when we poll for new locations, we are retrieving duplicate data in each request, which consumes more read capacity units. Using a list means the duplicated data that we have to fetch every time is also bigger, as you can only retrieve all of whole array.
 - You would need a mechanism to ensure that the list is always sorted in the correct order.
 - Querying gets much more complicated, as you can't retrieve a set of coordinates given a coordinate range.
-- Any other attribute that is added - for example, the quantity, and price of the items the customer purchased at some kiosk at a given location and time, need to be stored in a list as well, since you will only have device id as the partition key but no timestamp to use as sort key. This makes querying harder, as it is not possible to create indexes on nested elements in DynamoDB. You also will not be able to do aggregations unlike using relational databases.
+- Any other metric or value that is needs to be captured over time will also need to be stored in a list. This makes querying harder, as it is not possible to create indexes on nested elements in DynamoDB. 
 
 Why using a flat schema (each row has id, timestamp, and coordinate x y z) makes sense
 
@@ -108,7 +106,7 @@ Why using a flat schema (each row has id, timestamp, and coordinate x y z) makes
 - Checking if a given device ID has a new location requires us to check only one document -  by traversing the timestamp in reverse.
 - Other attributes that do not change over time should be stored separately - for example, in a relational database where you can have strong consistency. Using the same device ID as the primary key.
 - Using this architecture, you can flexibly add and change the attribute at any time.
-- This is the only schema currently that allows you to say, 
+- This is the only schema currently that allows you to say, here's a rectangular boundary, find the rows that are located inside the boundary, by performing range search on the geohash. Using a list also means that we cannot sort by or search by coordinates easily.
 
 ### **Assumption around Marker behaviors**
 
@@ -198,7 +196,7 @@ void DynamoDBStreamsReplay(FString TableName);
 
 #### Listen
 
- The replay feature uses the `LATEST` shard iterator. The `LATEST` shard iterator is one of the ways in which a client can iterate through DynamoDB Streams. When the client sends a request for `LATEST` shard iterator to AWS, AWS internally creates an iterator, and returns the ID of the iterator to the client. `LATEST` shard iterator means that it will contain any records inserted from the moment the `LATEST` shard iterator is created, until the subsequent `GetRecords` request is sent to DynamoDB Streams, in chronological order. It is important to note that, in contrary to my initial assumption, DynamoDB Streams does not have the ability to let you subscribe to updates. `DynamoDBStreamsListen()`, the method used for Replay creates a `LATEST`  s hard iterator, then sends the `GetRecords` request `PollingInterval` seconds later, and also creates another `LATEST` iterator, and repeats the 2 steps until the replay function is invoked again.
+The replay feature uses the `LATEST` shard iterator. The `LATEST` shard iterator is one of the ways in which a client can iterate through DynamoDB Streams. When the client sends a request for `LATEST` shard iterator to AWS, AWS internally creates an iterator, and returns the ID of the iterator to the client. `LATEST` shard iterator means that it will contain any records inserted from the moment the `LATEST` shard iterator is created, until the subsequent `GetRecords` request is sent to DynamoDB Streams, in chronological order. It is important to note that, in contrary to my initial assumption, DynamoDB Streams does not have the ability to let you subscribe to updates. `DynamoDBStreamsListen()`, the method used for Replay creates a `LATEST`  s hard iterator, then sends the `GetRecords` request `PollingInterval` seconds later, and also creates another `LATEST` iterator, and repeats the 2 steps until the replay function is invoked again.
 
 ```c++
 /* Length between each successive call to DynamoDBStreamsListen() */
